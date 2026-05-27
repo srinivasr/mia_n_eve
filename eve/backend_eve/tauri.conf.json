@@ -1,0 +1,37 @@
+{
+  "productName": "mia_n_eve",
+  "version": "0.1.0",
+  "identifier": "com.mianeve.dev",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../svelte/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "mia_n_eve",
+        "width": 400,
+        "height": 400,
+        "transparent": true,
+        "decorations": false,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
