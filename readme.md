@@ -1,5 +1,3 @@
-# MIA_N_EVE
-
 <p align="center">
   <h1 align="center">MIA_N_EVE</h1>
   <p align="center">
