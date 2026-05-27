@@ -11,13 +11,11 @@
     let sysKernel = "";
 
     onMount(async () => {
-        // Try fetching real system info from the Python server first
         try {
             const res = await fetch("http://127.0.0.1:8765/system-info");
             if (res.ok) {
                 const data = await res.json();
                 sysOs = data.os || "Unknown";
-                // Shorten long CPU names (e.g., "Intel(R) Core(TM) i7-12700H" → "i7-12700H")
                 const cpuRaw = data.cpu || "Unknown";
                 const cpuShort = cpuRaw
                     .replace(/\(R\)/g, "")
@@ -25,19 +23,14 @@
                     .trim();
                 sysCpu = `${cpuShort.length > 22 ? cpuShort.substring(cpuShort.length - 22) : cpuShort}`;
                 sysMem = data.ram_gb ? `${data.ram_gb} GB` : "Unknown";
-                // Shorten GPU name
                 const gpuRaw = data.gpu || "Unknown";
                 sysGpu =
                     gpuRaw.length > 24 ? gpuRaw.substring(0, 24) + "…" : gpuRaw;
                 sysArch = data.arch || "";
                 sysKernel = data.kernel || "";
-                return; // Success — skip browser fallback
+                return;
             }
-        } catch (_) {
-            // Server not running — fall through to browser APIs
-        }
-
-        // Fallback: Browser API detection (limited info)
+        } catch (_) {}
         const ua = navigator.userAgent;
         if (ua.includes("Win")) sysOs = "Windows";
         else if (ua.includes("Mac")) sysOs = "macOS";
