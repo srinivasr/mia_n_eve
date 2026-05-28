@@ -1,6 +1,8 @@
 <script lang="ts">
   import ThreeOrb from "./lib/components/ThreeOrb.svelte";
   import Telemetry from "./lib/components/Telemetry.svelte";
+  import TopAudioBar from "./lib/components/TopAudioBar.svelte";
+  import ChatModule from "./lib/components/ChatModule.svelte";
   import { onMount } from "svelte";
   import {
     currentState,
@@ -9,6 +11,21 @@
     isConnected,
   } from "./lib/stores/eveState";
 
+  interface Message {
+    time: string;
+    sender: string;
+    text: string;
+  }
+
+  let messages: Message[] = [
+    {
+      time: "15:00:00",
+      sender: "SYSTEM",
+      text: "E.V.E. PROTOCOL INITIALIZED.",
+    },
+  ];
+
+  let inputValue = "";
   let ws: WebSocket | null = null;
 
   onMount(() => {
@@ -31,6 +48,42 @@
     }, 13000);
   });
 
+  transcript.subscribe((value) => {
+    if (value) {
+      const now = new Date().toTimeString().split(" ")[0];
+      if (
+        messages.length === 0 ||
+        messages[messages.length - 1].text !== value
+      ) {
+        messages = [...messages, { time: now, sender: "EVE", text: value }];
+      }
+    }
+  });
+
+  function handleSendMessage(detail: { text: string }) {
+    const text = detail.text;
+    const now = new Date().toTimeString().split(" ")[0];
+    messages = [...messages, { time: now, sender: "USER", text }];
+
+    currentState.set("Thinking");
+
+    setTimeout(() => {
+      currentState.set("Speaking");
+      const responses = [
+        "Command sequence accepted. Core systems operational.",
+        "Analyzing ambient frequencies. Visualizer is fully active.",
+        "Sub-system validation complete. Hardware metrics are nominal.",
+        "Establishing neural pathways. Communication link secure.",
+      ];
+      const reply = responses[Math.floor(Math.random() * responses.length)];
+      transcript.set(reply);
+
+      setTimeout(() => {
+        currentState.set("Idle");
+      }, 3000);
+    }, 1500);
+  }
+
   function connectWs() {
     try {
       isConnected.set(true);
@@ -44,15 +97,13 @@
 <main data-tauri-drag-region>
   <Telemetry />
 
+  <div class="audio-bar-container">
+    <TopAudioBar />
+  </div>
+
   <ThreeOrb />
 
-  {#if $transcript}
-    <div class="transcript-container">
-      <div class="transcript">
-        {$transcript}
-      </div>
-    </div>
-  {/if}
+  <ChatModule {messages} bind:inputValue onsend={handleSendMessage} />
 </main>
 
 <style>
@@ -66,45 +117,12 @@
     position: relative;
   }
 
-  .transcript-container {
+  .audio-bar-container {
     position: absolute;
-    bottom: 40px;
-    left: 0;
-    right: 0;
-    display: flex;
-    justify-content: center;
-    padding: 0 40px;
+    top: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
     pointer-events: none;
-    z-index: 50;
-  }
-
-  .transcript {
-    background: rgba(10, 15, 20, 0.75);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(100, 255, 218, 0.2);
-    color: #e6f1ff;
-    padding: 15px 30px;
-    border-radius: 20px;
-    font-size: 1.15rem;
-    font-weight: 300;
-    letter-spacing: 0.5px;
-    line-height: 1.5;
-    max-width: 70%;
-    text-align: center;
-    box-shadow:
-      0 10px 30px rgba(0, 0, 0, 0.6),
-      0 0 15px rgba(100, 255, 218, 0.1);
-    animation: fade-in 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-  }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(15px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
 </style>
