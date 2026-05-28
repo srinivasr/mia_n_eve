@@ -63,10 +63,10 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         container.appendChild(renderer.domElement);
 
-        const particleCount = 8000;
+        const particleCount = 4000;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
-        const radius = 60;
+        const radius = 30;
 
         for (let i = 0; i < particleCount; i++) {
             // Math for uniform point distribution on a sphere surface (with slight volume)
@@ -96,6 +96,7 @@
         });
 
         particleSystem = new THREE.Points(geometry, material);
+        particleSystem.position.y = 20;
         scene.add(particleSystem);
         currentColor.setHex(stateConfigs["Idle"].color);
     }
