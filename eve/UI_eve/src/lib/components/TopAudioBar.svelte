@@ -1,17 +1,16 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
     import { currentState } from "../stores/eveState";
+    import { listen } from "@tauri-apps/api/event";
+    import type { UnlistenFn } from "@tauri-apps/api/event";
 
     export let audioData: number[] = [];
 
     let canvas: HTMLCanvasElement;
     let animationId: number;
-    let audioContext: AudioContext | null = null;
-    let analyser: AnalyserNode | null = null;
-    let dataArray: any;
-    let source: MediaStreamAudioSourceNode | null = null;
-    let stream: MediaStream | null = null;
+    let unlistenAudio: UnlistenFn | null = null;
     let hasMicAccess = false;
+    let micData: number[] = [];
 
     const stateColors = {
         Idle: "rgba(74, 229, 255, ",
@@ -23,40 +22,25 @@
         Error: "rgba(255, 51, 51, )",
     };
 
-    onMount(() => {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices
-                .getUserMedia({ audio: true })
-                .then((s) => {
-                    stream = s;
-                    audioContext = new (window.AudioContext ||
-                        (window as any).webkitAudioContext)();
-                    analyser = audioContext.createAnalyser();
-                    analyser.fftSize = 64;
-                    source = audioContext.createMediaStreamSource(stream);
-                    source.connect(analyser);
-                    const bufferLength = analyser.frequencyBinCount;
-                    dataArray = new Uint8Array(bufferLength);
-                    hasMicAccess = true;
-                    tick();
-                })
-                .catch(() => {
-                    tick();
-                });
-        } else {
-            tick();
+    onMount(async () => {
+        try {
+            unlistenAudio = await listen<number[]>("audio-stream", (event) => {
+                hasMicAccess = true;
+                micData = event.payload;
+            });
+        } catch (e) {
+            console.error("Failed to listen to audio-stream", e);
         }
+
+        tick();
     });
 
     onDestroy(() => {
         if (animationId) {
             cancelAnimationFrame(animationId);
         }
-        if (stream) {
-            stream.getTracks().forEach((track) => track.stop());
-        }
-        if (audioContext) {
-            audioContext.close();
+        if (unlistenAudio) {
+            unlistenAudio();
         }
     });
 
@@ -69,66 +53,70 @@
         const height = canvas.height;
         ctx.clearRect(0, 0, width, height);
 
-        const barWidth = 4;
-        const gap = 2;
-        const totalBars = Math.floor(width / (barWidth + gap));
         const center = width / 2;
+        const midY = height / 2;
 
         const baseColor =
             stateColors[$currentState as keyof typeof stateColors] ||
             stateColors.Idle;
+        ctx.shadowBlur = 0;
+        ctx.lineCap = "round";
 
-        for (let i = 0; i < totalBars / 2; i++) {
-            const value = data[i % data.length] || 0;
+        const numBars = 20;
+        const barWidth = 6;
+        const gap = 8;
+
+        ctx.lineWidth = barWidth;
+
+        for (let i = 0; i < numBars; i++) {
+            const binIndex = Math.floor((i / numBars) * (data.length * 0.8));
+            const value = data[binIndex] || 0;
             const percent = value / 255;
-            const barHeight = Math.max(2, percent * height);
 
-            ctx.fillStyle = `${baseColor}${0.2 + percent * 0.8})`;
+            const barHeight = 6 + percent * (height - 12);
+            const xOffset = i * (barWidth + gap) + gap / 2;
 
-            ctx.fillRect(
-                center + i * (barWidth + gap),
-                (height - barHeight) / 2,
-                barWidth,
-                barHeight,
-            );
-            ctx.fillRect(
-                center - (i + 1) * (barWidth + gap),
-                (height - barHeight) / 2,
-                barWidth,
-                barHeight,
-            );
+            ctx.strokeStyle = `${baseColor}${0.15 + percent * 0.4})`;
+
+            ctx.beginPath();
+            ctx.moveTo(center + xOffset, midY - barHeight / 2);
+            ctx.lineTo(center + xOffset, midY + barHeight / 2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(center - xOffset, midY - barHeight / 2);
+            ctx.lineTo(center - xOffset, midY + barHeight / 2);
+            ctx.stroke();
         }
     }
 
     function tick() {
-        if (hasMicAccess && analyser && dataArray) {
-            analyser.getByteFrequencyData(dataArray);
-            draw(dataArray);
+        if (hasMicAccess && micData.length > 0) {
+            draw(micData);
         } else if (audioData && audioData.length > 0) {
             draw(audioData);
         } else {
-            const t = Date.now() * 0.003;
+            const t = Date.now() * 0.005;
             let mockData: number[] = [];
 
-            if ($currentState === "Listening") {
+            if ($currentState === "Speaking") {
                 mockData = Array.from({ length: 32 }, (_, i) => {
-                    const noise = Math.random() * 20;
-                    return Math.max(0, Math.sin(t + i * 0.3) * 60 + 80 + noise);
-                });
-            } else if ($currentState === "Speaking") {
-                mockData = Array.from({ length: 32 }, (_, i) => {
-                    const wave = Math.sin(t * 2 + i * 0.15) * Math.cos(t * 0.5);
-                    return Math.max(0, Math.abs(wave) * 160 + 30);
+                    const wave = Math.sin(t + i * 0.5) * Math.cos(t * 0.2);
+                    return Math.max(0, Math.abs(wave) * 200);
                 });
             } else if ($currentState === "Thinking") {
                 mockData = Array.from({ length: 32 }, (_, i) => {
-                    const pos = i / 32;
-                    const pulse = Math.sin(t * 3 - pos * Math.PI * 4);
-                    return Math.max(0, (pulse > 0.7 ? 1 : 0.1) * 80 + 10);
+                    const pulse = Math.sin(t * 2 - (i / 32) * Math.PI * 4);
+                    return Math.max(0, pulse > 0.8 ? 150 : 10);
+                });
+            } else if ($currentState === "Listening") {
+                mockData = Array.from({ length: 32 }, (_, i) => {
+                    const noise = Math.random() * 50;
+                    return Math.max(0, Math.sin(t + i * 0.3) * 30 + noise);
                 });
             } else {
                 mockData = Array.from({ length: 32 }, (_, i) => {
-                    return Math.max(0, Math.sin(t + i * 0.1) * 15 + 20);
+                    return Math.max(0, Math.sin(t + i * 0.1) * 5 + 5);
                 });
             }
             draw(mockData);
@@ -137,13 +125,17 @@
     }
 </script>
 
-<canvas bind:this={canvas} width={300} height={40} class="top-audio-bar"
+<canvas bind:this={canvas} width={400} height={50} class="top-audio-bar"
 ></canvas>
 
 <style>
     .top-audio-bar {
-        opacity: 0.85;
-        filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.3));
-        transition: filter 0.3s ease;
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        pointer-events: none;
+        will-change: transform;
     }
 </style>

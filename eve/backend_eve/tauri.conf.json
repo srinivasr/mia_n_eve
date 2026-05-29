@@ -3,18 +3,17 @@
   "version": "0.1.0",
   "identifier": "com.mianeve.dev",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "cd ../UI_eve && npm run build",
     "devUrl": "http://localhost:5173",
-    "frontendDist": "../svelte/dist"
+    "frontendDist": "../UI_eve/dist"
   },
   "app": {
     "windows": [
       {
         "title": "mia_n_eve",
-        "width": 400,
-        "height": 400,
-        "transparent": true,
+        "fullscreen": true,
+        "transparent": false,
         "decorations": false,
         "resizable": true
       }
