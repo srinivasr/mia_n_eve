@@ -1,0 +1,61 @@
+# ===========================
+# Rust / Cargo
+# ===========================
+**/target/
+**/*.rs.bk
+Cargo.lock
+
+# ===========================
+# Node / NPM
+# ===========================
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/.vite/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===========================
+# Python
+# ===========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.venv/
+venv/
+.env
+
+# ===========================
+# Tauri generated / build
+# ===========================
+eve/backend_eve/gen/
+eve/backend_eve/icons/
+eve/backend_eve/capabilities/
+eve/backend_eve/test_tauri
+eve/backend_eve/test_tauri.rs
+
+# ===========================
+# IDE / Editor
+# ===========================
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ===========================
+# OS files
+# ===========================
+.DS_Store
+Thumbs.db
+*.local

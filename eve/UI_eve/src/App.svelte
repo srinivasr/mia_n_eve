@@ -29,6 +29,18 @@
   let ws: WebSocket | null = null;
 
   onMount(() => {
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      alert("Error: " + msg);
+      return false;
+    };
+    const originalError = console.error;
+    console.error = function(...args) {
+      if (args[0] && args[0].toString().includes("WebGL")) {
+        alert("WebGL Error: " + args.join(" "));
+      }
+      originalError.apply(console, args);
+    };
+
     connectWs();
     setTimeout(() => {
       currentState.set("Listening");
