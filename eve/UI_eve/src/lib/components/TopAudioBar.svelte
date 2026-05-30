@@ -1,8 +1,9 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
-    import { currentState } from "../stores/eveState";
     import { listen } from "@tauri-apps/api/event";
     import type { UnlistenFn } from "@tauri-apps/api/event";
+    import { currentState } from "../stores/eveState";
+    import { rmsLevel, captureRunning } from "../stores/audioStore";
 
     export let audioData: number[] = [];
 
@@ -29,7 +30,7 @@
                 micData = event.payload;
             });
         } catch (e) {
-            console.error("Failed to listen to audio-stream", e);
+            // Tauri event not available (browser dev), that's okay
         }
 
         tick();
@@ -95,7 +96,17 @@
             draw(micData);
         } else if (audioData && audioData.length > 0) {
             draw(audioData);
+        } else if ($captureRunning) {
+            // synthesize a visualizer from just the RMS value
+            const val = $rmsLevel;
+            const t = Date.now() * 0.003;
+            let nativeData = Array.from({ length: 32 }, (_, i) => {
+                const variance = Math.sin(t + i) * 15;
+                return Math.max(0, val + variance);
+            });
+            draw(nativeData);
         } else {
+            // no audio data — just animate based on state for visual flair
             const t = Date.now() * 0.005;
             let mockData: number[] = [];
 
@@ -125,8 +136,7 @@
     }
 </script>
 
-<canvas bind:this={canvas} width={400} height={50} class="top-audio-bar"
-></canvas>
+<canvas bind:this={canvas} width={400} height={50} class="top-audio-bar"></canvas>
 
 <style>
     .top-audio-bar {

@@ -1,25 +1,22 @@
 #!/usr/bin/env python3
 """
-System Info Server for mia_n_eve.
-Lightweight HTTP server that exposes real system specifications
-to the Svelte frontend. Runs on port 8765.
+Tiny HTTP server that exposes system hardware info to the frontend.
+Runs on port 8766 as a sidecar process.
 """
 import json
 import platform
 import os
 import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from typing import Any, Dict
 
+def get_system_info() -> Dict[str, Any]:
+    info: Dict[str, Any] = {}
 
-def get_system_info() -> dict:
-    info = {}
-
-    # OS
     info["os"] = f"{platform.system()} {platform.release()}"
 
-    # CPU
+    # CPU name — linux gives us /proc/cpuinfo, mac needs sysctl
     cpu_name = platform.processor() or "Unknown"
-    # Try to get a better CPU name on Linux
     if platform.system() == "Linux":
         try:
             with open("/proc/cpuinfo", "r") as f:
@@ -42,7 +39,7 @@ def get_system_info() -> dict:
     info["cpu"] = cpu_name
     info["cpu_cores"] = os.cpu_count() or 0
 
-    # RAM
+    # RAM — parse meminfo on linux, sysctl on mac
     try:
         if platform.system() == "Linux":
             with open("/proc/meminfo", "r") as f:
@@ -62,7 +59,7 @@ def get_system_info() -> dict:
     except Exception:
         info["ram_gb"] = 0
 
-    # GPU
+    # GPU — nvidia-smi first, then fall back to lspci
     gpu_name = "No dedicated GPU"
     try:
         result = subprocess.run(
@@ -71,7 +68,6 @@ def get_system_info() -> dict:
         )
         gpu_name = result.stdout.strip().split("\n")[0]
     except (FileNotFoundError, subprocess.CalledProcessError):
-        # Try lspci on Linux
         if platform.system() == "Linux":
             try:
                 result = subprocess.run(
@@ -85,22 +81,17 @@ def get_system_info() -> dict:
                 pass
     info["gpu"] = gpu_name
 
-    # Kernel
     info["kernel"] = platform.release()
-
-    # Architecture
     info["arch"] = platform.machine()
-
-    # Hostname
     info["hostname"] = platform.node()
 
     return info
 
 
 class CORSRequestHandler(BaseHTTPRequestHandler):
-    """Simple HTTP handler with CORS for local frontend access."""
+    """Simple handler so the frontend can fetch system info without CORS issues."""
 
-    def do_GET(self):
+    def do_GET(self) -> None:
         if self.path == "/system-info":
             data = get_system_info()
             self.send_response(200)
@@ -112,23 +103,22 @@ class CORSRequestHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-    def do_OPTIONS(self):
+    def do_OPTIONS(self) -> None:
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-    def log_message(self, format, *args):
-        # Suppress noisy access logs
-        pass
+    def log_message(self, format: str, *args: Any) -> None:
+        pass  # silence the default access logs
 
 
-def main():
-    port = 8765
+def main() -> None:
+    port = 8766
     server = HTTPServer(("127.0.0.1", port), CORSRequestHandler)
-    print(f"🧠 Eve System Info server running at http://127.0.0.1:{port}/system-info")
-    print("   Press Ctrl+C to stop.")
+    print(f"Eve System Info server running at http://127.0.0.1:{port}/system-info")
+    print("Press Ctrl+C to stop.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

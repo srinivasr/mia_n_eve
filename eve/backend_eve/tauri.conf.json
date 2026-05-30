@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "identifier": "com.mianeve.dev",
   "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "cd ../UI_eve && npm run build",
+    "beforeDevCommand": "npm run dev --prefix UI_eve",
+    "beforeBuildCommand": "npm run build --prefix UI_eve",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../UI_eve/dist"
   },
@@ -24,13 +24,6 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
+    "targets": "all"
   }
 }
