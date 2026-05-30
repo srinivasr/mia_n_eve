@@ -1,6 +1,7 @@
 <script lang="ts">
-    import { onMount, afterUpdate } from "svelte";
+    import { onMount, afterUpdate, onDestroy } from "svelte";
     import { currentState } from "../stores/eveState";
+    import { sttResult } from "../stores/audioStore";
 
     export let messages: Array<{ time: string; sender: string; text: string }> =
         [];
@@ -36,8 +37,21 @@
         scrollToBottom();
     });
 
+    let unsubscribeStt: () => void;
+
     onMount(() => {
         scrollToBottom();
+        // wire up the STT result stream so voice input fills the text box
+        unsubscribeStt = sttResult.subscribe((val) => {
+            if (val) {
+                inputValue = (inputValue + " " + val).trim();
+                sttResult.set("");
+            }
+        });
+    });
+
+    onDestroy(() => {
+        if (unsubscribeStt) unsubscribeStt();
     });
 </script>
 

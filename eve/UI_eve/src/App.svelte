@@ -3,6 +3,7 @@
   import Telemetry from "./lib/components/Telemetry.svelte";
   import TopAudioBar from "./lib/components/TopAudioBar.svelte";
   import ChatModule from "./lib/components/ChatModule.svelte";
+  import AudioDevicePanel from "./lib/components/AudioDevicePanel.svelte";
   import { onMount } from "svelte";
   import {
     currentState,
@@ -33,6 +34,8 @@
       alert("Error: " + msg);
       return false;
     };
+    // the error overlay was swallowing useful error messages
+    // so let's also dump them to console
     const originalError = console.error;
     console.error = function(...args) {
       if (args[0] && args[0].toString().includes("WebGL")) {
@@ -42,6 +45,8 @@
     };
 
     connectWs();
+
+    // these timeouts are just for demo / testing the state transitions
     setTimeout(() => {
       currentState.set("Listening");
     }, 3000);
@@ -97,6 +102,8 @@
   }
 
   function connectWs() {
+    // TODO: actually wire up real websocket connection
+    // for now we just pretend the connection is live
     try {
       isConnected.set(true);
       latencyMs.set(45);
@@ -116,6 +123,8 @@
   <ThreeOrb />
 
   <ChatModule {messages} bind:inputValue onsend={handleSendMessage} />
+
+  <AudioDevicePanel />
 </main>
 
 <style>

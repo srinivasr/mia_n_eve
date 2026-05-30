@@ -2,7 +2,6 @@
     import { isConnected, latencyMs, currentState } from "../stores/eveState";
     import { onMount } from "svelte";
 
-    // System Specification States
     let sysOs = "Detecting...";
     let sysCpu = "Detecting...";
     let sysMem = "Detecting...";
@@ -11,8 +10,9 @@
     let sysKernel = "";
 
     onMount(async () => {
+        // try the system info server first — it gives us real hardware data
         try {
-            const res = await fetch("http://127.0.0.1:8765/system-info");
+            const res = await fetch("http://127.0.0.1:8766/system-info");
             if (res.ok) {
                 const data = await res.json();
                 sysOs = data.os || "Unknown";
@@ -30,7 +30,11 @@
                 sysKernel = data.kernel || "";
                 return;
             }
-        } catch (_) {}
+        } catch (_) {
+            // server not running, fall back to browser detection
+        }
+
+        // browser-based fallback (less accurate but better than nothing)
         const ua = navigator.userAgent;
         if (ua.includes("Win")) sysOs = "Windows";
         else if (ua.includes("Mac")) sysOs = "macOS";
