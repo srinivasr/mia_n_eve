@@ -267,27 +267,24 @@
                 side: THREE.DoubleSide,
             });
 
-        equatorialRing = new THREE.Mesh(
-            ringGeo(65, 0.08),
-            ringMat(0x00d4ff, 0.4),
-        );
+        equatorialRing = new THREE.Mesh(ringGeo(65, 0.08), ringMat(0x4ae5ff, 0.4));
         equatorialRing.position.y = 5;
         scene.add(equatorialRing);
 
-        tiltedRing = new THREE.Mesh(ringGeo(70, 0.06), ringMat(0x0ea5e9, 0.3));
+        tiltedRing = new THREE.Mesh(ringGeo(70, 0.06), ringMat(0x4ae5ff, 0.3));
         tiltedRing.position.y = 5;
         tiltedRing.rotation.x = 0.7;
         tiltedRing.rotation.z = 0.5;
         scene.add(tiltedRing);
 
-        polarRing = new THREE.Mesh(ringGeo(62, 0.05), ringMat(0x7dd3fc, 0.2));
+        polarRing = new THREE.Mesh(ringGeo(62, 0.05), ringMat(0x4ae5ff, 0.2));
         polarRing.position.y = 5;
         polarRing.rotation.x = Math.PI / 2;
         scene.add(polarRing);
 
         const pulseGeo = new THREE.RingGeometry(2, 5, 64);
         const pulseMat = new THREE.MeshBasicMaterial({
-            color: 0x00d4ff,
+            color: 0x4ae5ff,
             transparent: true,
             opacity: 0,
             side: THREE.DoubleSide,
@@ -412,6 +409,24 @@
         shaderMaterial.uniforms.uTime.value = Date.now() * 0.001;
         shaderMaterial.uniforms.uColor.value.copy(currentColor);
         shaderMaterial.uniforms.uBreathIntensity.value = currentBreathIntensity;
+
+        // Rings track the orb color with brightness layers for depth
+        if (equatorialRing)
+            (equatorialRing.material as THREE.MeshBasicMaterial).color.copy(
+                currentColor,
+            );
+        if (tiltedRing)
+            (tiltedRing.material as THREE.MeshBasicMaterial).color
+                .copy(currentColor)
+                .multiplyScalar(0.65);
+        if (polarRing)
+            (polarRing.material as THREE.MeshBasicMaterial).color
+                .copy(currentColor)
+                .multiplyScalar(0.4);
+        if (pulseRing)
+            (pulseRing.material as THREE.MeshBasicMaterial).color.copy(
+                currentColor,
+            );
 
         // Apply frame-rate independent rotation
         particleSystem.rotation.y += currentSpeed * dt;
