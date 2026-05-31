@@ -17,157 +17,149 @@
         Error: "#ff3333",
     };
 
+    let displayR = 74,
+        displayG = 229,
+        displayB = 255;
     let displayColor = "#4ae5ff";
     let targetDisplayColor = "#4ae5ff";
-    let displayR = 74, displayG = 229, displayB = 255;
 
-    onMount(() => {
-        tick();
-    });
-
-    onDestroy(() => {
-        if (animationId) cancelAnimationFrame(animationId);
-    });
-
-    function lerpColor(a: string, b: string, t: number): string {
+    function lerpColor(a: string, b: string, t: number): void {
         const ca = parseInt(a.slice(1), 16);
         const cb = parseInt(b.slice(1), 16);
-        const r = ((ca >> 16) & 0xff) * (1 - t) + ((cb >> 16) & 0xff) * t;
-        const g = ((ca >> 8) & 0xff) * (1 - t) + ((cb >> 8) & 0xff) * t;
-        const bv = (ca & 0xff) * (1 - t) + (cb & 0xff) * t;
-        displayR = r | 0;
-        displayG = g | 0;
-        displayB = bv | 0;
-        return `rgb(${r | 0},${g | 0},${bv | 0})`;
+        displayR =
+            (((ca >> 16) & 0xff) * (1 - t) + ((cb >> 16) & 0xff) * t) | 0;
+        displayG = (((ca >> 8) & 0xff) * (1 - t) + ((cb >> 8) & 0xff) * t) | 0;
+        displayB = ((ca & 0xff) * (1 - t) + (cb & 0xff) * t) | 0;
     }
 
     function rgba(a: number): string {
         return `rgba(${displayR},${displayG},${displayB},${a})`;
     }
 
+    onMount(() => {
+        tick();
+    });
+    onDestroy(() => {
+        if (animationId) cancelAnimationFrame(animationId);
+    });
+
     function draw(data: number[]) {
         if (!canvas) return;
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        const w = canvas.width;
-        const h = canvas.height;
+        const w = canvas.width,
+            h = canvas.height;
         ctx.clearRect(0, 0, w, h);
 
         targetDisplayColor =
             stateColors[$currentState as keyof typeof stateColors] ||
             stateColors.Idle;
-        displayColor = lerpColor(displayColor, targetDisplayColor, 0.15);
+        lerpColor(displayColor, targetDisplayColor, 0.12);
+        displayColor = targetDisplayColor;
 
-        const center = w / 2;
-        const midY = h / 2;
-
-        const numBars = 28;
-        const barWidth = 4;
-        const gap = 5;
-        const totalWidth = numBars * (barWidth + gap);
-        const startX = center - totalWidth / 2 + barWidth / 2;
-
-        // ── Scan line overlay ──────────────────────────────────────────
-        scanLinePos = (scanLinePos + 0.6) % h;
+        // ── HUD frame outline ──────────────────────────────────────────
         ctx.save();
-        ctx.globalAlpha = 0.15;
-        ctx.strokeStyle = rgba(0.7);
+        ctx.strokeStyle = rgba(0.15);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(1.5, 1.5);
+        ctx.lineTo(w - 1.5, 1.5);
+        ctx.lineTo(w - 1.5, h - 1.5);
+        ctx.lineTo(1.5, h - 1.5);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+
+        const midY = h / 2;
+        const numBars = 28;
+        const barW = 6;
+        const gap = 2;
+        const totalW = numBars * (barW + gap);
+        const startX = (w - totalW) / 2 + barW / 2;
+        ctx.lineCap = "round";
+
+        // ── Bars ───────────────────────────────────────────────────────
+        for (let i = 0; i < numBars; i++) {
+            const raw = data[Math.floor((i / numBars) * data.length)] || 0;
+            const percent = Math.min(1, raw / 255);
+            const barH = 4 + percent * (h - 28);
+            const x = startX + i * (barW + gap);
+
+            const centerT = 1 - Math.abs(i - numBars / 2) / (numBars / 2);
+            const dim = 0.5 + centerT * 0.5;
+            const a = Math.min(0.95, 0.3 + percent * 0.7);
+
+            ctx.shadowColor = rgba(0.8 * dim);
+            ctx.shadowBlur = percent > 0.15 ? 3 + percent * 16 : 0;
+            ctx.lineWidth = barW;
+            ctx.strokeStyle = rgba(a * dim);
+
+            const topY = midY - barH / 2;
+            ctx.beginPath();
+            ctx.moveTo(x, topY);
+            ctx.lineTo(x, midY + barH / 2);
+            ctx.stroke();
+        }
+
+        // ── Scan line ──────────────────────────────────────────────────
+        scanLinePos = (scanLinePos + 0.5) % h;
+        ctx.save();
+        ctx.globalAlpha = 0.06;
+        ctx.strokeStyle = rgba(1);
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, scanLinePos);
         ctx.lineTo(w, scanLinePos);
         ctx.stroke();
         ctx.restore();
-
-        // ── Draw bars ──────────────────────────────────────────────────
-        for (let i = 0; i < numBars; i++) {
-            const binIndex = Math.floor((i / numBars) * (data.length * 0.8));
-            const raw = data[binIndex] || 0;
-            const percent = Math.min(1, raw / 255);
-
-            const barHeight = 8 + percent * (h - 16);
-            const x = startX + i * (barWidth + gap);
-
-            // Center bars are brighter, edges are dimmer
-            const centerT = 1 - Math.abs(i - numBars / 2) / (numBars / 2);
-            const brightness = 0.5 + centerT * 0.5;
-            const alpha = 0.4 + percent * 0.6;
-
-            // Glow for louder bars
-            ctx.shadowColor = rgba(0.8);
-            ctx.shadowBlur = percent > 0.15 ? 6 + percent * 18 : 2;
-
-            ctx.lineCap = "round";
-            ctx.lineWidth = barWidth;
-
-            // Gradient from top to bottom of bar
-            const topY = midY - barHeight / 2;
-            const botY = midY + barHeight / 2;
-            const gradient = ctx.createLinearGradient(0, topY, 0, botY);
-            gradient.addColorStop(0, rgba(alpha * brightness * 0.6));
-            gradient.addColorStop(0.5, rgba(alpha * brightness));
-            gradient.addColorStop(1, rgba(alpha * brightness * 0.4));
-
-            ctx.strokeStyle = gradient;
-
-            ctx.beginPath();
-            ctx.moveTo(x, topY);
-            ctx.lineTo(x, botY);
-            ctx.stroke();
-        }
-
-        // ── Center indicator dot ───────────────────────────────────────
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = rgba(0.8);
-        ctx.fillStyle = rgba(0.8);
-        ctx.globalAlpha = 0.4;
-        ctx.beginPath();
-        ctx.arc(center, midY, 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.shadowBlur = 0;
     }
 
     function tick() {
         const t = Date.now() * 0.003;
+        const N = 28;
         let data: number[];
 
-        const N = 28;
         if ($captureRunning) {
             const val = $rmsLevel;
-            if (val > 0) {
-                data = Array.from({ length: N }, (_, i) => {
-                    const variance = Math.sin(t + i * 0.3) * 25;
-                    return Math.max(0, Math.min(255, val + variance));
-                });
+            if (val > 5) {
+                data = Array.from({ length: N }, (_, i) =>
+                    Math.max(
+                        0,
+                        Math.min(255, val + Math.sin(t + i * 0.3) * 30),
+                    ),
+                );
             } else {
-                data = Array.from({ length: N }, (_, i) => {
-                    const breathe = Math.sin(t * 0.6 + i * 0.2) * 0.5 + 0.5;
-                    const noise = Math.random() * 30;
-                    return Math.max(0, breathe * 40 + noise);
-                });
+                data = Array.from({ length: N }, (_, i) =>
+                    Math.max(
+                        0,
+                        (Math.sin(t * 0.6 + i * 0.2) * 0.5 + 0.5) * 40 +
+                            Math.random() * 25,
+                    ),
+                );
             }
         } else if ($currentState === "Speaking") {
-            data = Array.from({ length: N }, (_, i) => {
-                const wave = Math.sin(t + i * 0.5) * Math.cos(t * 0.3);
-                return Math.max(0, Math.abs(wave) * 220);
-            });
+            data = Array.from(
+                { length: N },
+                (_, i) =>
+                    Math.abs(Math.sin(t + i * 0.5) * Math.cos(t * 0.3)) * 220,
+            );
         } else if ($currentState === "Thinking") {
-            data = Array.from({ length: N }, (_, i) => {
-                const pulse = Math.sin(t * 2.5 - (i / N) * Math.PI * 6);
-                return Math.max(0, pulse > 0.7 ? 200 : 12);
-            });
+            data = Array.from({ length: N }, (_, i) =>
+                Math.sin(t * 2.5 - (i / N) * Math.PI * 6) > 0.7 ? 200 : 10,
+            );
         } else if ($currentState === "Listening") {
-            data = Array.from({ length: N }, (_, i) => {
-                const noise = Math.random() * 80;
-                return Math.max(0, Math.sin(t + i * 0.3) * 50 + noise);
-            });
+            data = Array.from({ length: N }, (_, i) =>
+                Math.max(0, Math.sin(t + i * 0.3) * 60 + Math.random() * 60),
+            );
         } else {
-            data = Array.from({ length: N }, (_, i) => {
-                const breathe = Math.sin(t * 0.5) * 0.3 + 0.7;
-                return Math.max(0, Math.sin(t + i * 0.25) * 12 * breathe + 4);
-            });
+            data = Array.from({ length: N }, (_, i) =>
+                Math.max(
+                    0,
+                    (Math.sin(t * 0.5) * 0.3 + 0.7) *
+                        (Math.sin(t + i * 0.25) * 12 + 6),
+                ),
+            );
         }
 
         draw(data);
@@ -175,45 +167,19 @@
     }
 </script>
 
-<div class="audio-bar-wrap">
-    <canvas bind:this={canvas} width={500} height={70} class="top-audio-bar"></canvas>
-    <div class="bar-label">AUDIO</div>
-</div>
+<canvas bind:this={canvas} width={400} height={50} class="hud-audio"></canvas>
 
 <style>
-    .audio-bar-wrap {
+    .hud-audio {
+        display: block;
         position: absolute;
         top: 8px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 100;
         pointer-events: none;
-        border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.2);
-        border-radius: 4px;
-        padding: 2px;
-        transition: border-color 0.3s ease;
-    }
-
-    .top-audio-bar {
-        display: block;
-        border-radius: 2px;
-        background: rgba(var(--tr), var(--tg), var(--tb), 0.08);
-        will-change: transform;
-        filter: drop-shadow(0 0 10px rgba(var(--tr), var(--tg), var(--tb), 0.3));
-        transition: background 0.3s ease, filter 0.3s ease;
-    }
-
-    .bar-label {
-        position: absolute;
-        top: -4px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 101;
-        pointer-events: none;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.55rem;
-        letter-spacing: 3px;
-        color: rgba(var(--tr), var(--tg), var(--tb), 0.5);
-        transition: color 0.3s ease;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+        filter: drop-shadow(0 0 6px rgba(var(--tr), var(--tg), var(--tb), 0.2));
     }
 </style>
