@@ -1,17 +1,10 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
-    import { listen } from "@tauri-apps/api/event";
-    import type { UnlistenFn } from "@tauri-apps/api/event";
     import { currentState } from "../stores/eveState";
     import { rmsLevel, captureRunning } from "../stores/audioStore";
 
-    export let audioData: number[] = [];
-
     let canvas: HTMLCanvasElement;
     let animationId: number;
-    let unlistenAudio: UnlistenFn | null = null;
-    let hasMicAccess = false;
-    let micData: number[] = [];
     let scanLinePos = 0;
 
     const stateColors: Record<string, string> = {
@@ -27,26 +20,12 @@
     let displayColor = "#4ae5ff";
     let targetDisplayColor = "#4ae5ff";
 
-    onMount(async () => {
-        try {
-            unlistenAudio = await listen<number[]>("audio-stream", (event) => {
-                hasMicAccess = true;
-                micData = event.payload;
-            });
-        } catch (e) {
-            // Tauri event not available (browser dev), that's okay
-        }
-
+    onMount(() => {
         tick();
     });
 
     onDestroy(() => {
-        if (animationId) {
-            cancelAnimationFrame(animationId);
-        }
-        if (unlistenAudio) {
-            unlistenAudio();
-        }
+        if (animationId) cancelAnimationFrame(animationId);
     });
 
     function lerpColor(a: string, b: string, t: number): string {
@@ -143,44 +122,45 @@
     }
 
     function tick() {
-        if (hasMicAccess && micData.length > 0) {
-            draw(micData);
-        } else if (audioData && audioData.length > 0) {
-            draw(audioData);
-        } else if ($captureRunning) {
-            const val = $rmsLevel;
-            const t = Date.now() * 0.003;
-            const nativeData = Array.from({ length: 32 }, (_, i) => {
-                const variance = Math.sin(t + i) * 15;
-                return Math.max(0, val + variance);
-            });
-            draw(nativeData);
-        } else {
-            const t = Date.now() * 0.005;
-            let mockData: number[] = [];
+        const t = Date.now() * 0.003;
+        let data: number[];
 
-            if ($currentState === "Speaking") {
-                mockData = Array.from({ length: 32 }, (_, i) => {
-                    const wave = Math.sin(t + i * 0.5) * Math.cos(t * 0.2);
-                    return Math.max(0, Math.abs(wave) * 200);
-                });
-            } else if ($currentState === "Thinking") {
-                mockData = Array.from({ length: 32 }, (_, i) => {
-                    const pulse = Math.sin(t * 2 - (i / 32) * Math.PI * 4);
-                    return Math.max(0, pulse > 0.8 ? 150 : 10);
-                });
-            } else if ($currentState === "Listening") {
-                mockData = Array.from({ length: 32 }, (_, i) => {
-                    const noise = Math.random() * 60;
-                    return Math.max(0, Math.sin(t + i * 0.3) * 40 + noise);
+        if ($captureRunning) {
+            const val = $rmsLevel;
+            if (val > 0) {
+                data = Array.from({ length: 32 }, (_, i) => {
+                    const variance = Math.sin(t + i) * 20;
+                    return Math.max(0, Math.min(255, val + variance));
                 });
             } else {
-                mockData = Array.from({ length: 32 }, (_, i) => {
-                    return Math.max(0, Math.sin(t + i * 0.15) * 6 + 4);
+                data = Array.from({ length: 32 }, (_, i) => {
+                    const noise = Math.random() * 12;
+                    return Math.max(0, Math.sin(t + i * 0.4) * 8 + noise);
                 });
             }
-            draw(mockData);
+        } else if ($currentState === "Speaking") {
+            data = Array.from({ length: 32 }, (_, i) => {
+                const wave = Math.sin(t + i * 0.5) * Math.cos(t * 0.3);
+                return Math.max(0, Math.abs(wave) * 220);
+            });
+        } else if ($currentState === "Thinking") {
+            data = Array.from({ length: 32 }, (_, i) => {
+                const pulse = Math.sin(t * 2.5 - (i / 32) * Math.PI * 6);
+                return Math.max(0, pulse > 0.7 ? 180 : 8);
+            });
+        } else if ($currentState === "Listening") {
+            data = Array.from({ length: 32 }, (_, i) => {
+                const noise = Math.random() * 80;
+                return Math.max(0, Math.sin(t + i * 0.3) * 50 + noise);
+            });
+        } else {
+            data = Array.from({ length: 32 }, (_, i) => {
+                const breathe = Math.sin(t * 0.5) * 0.3 + 0.7;
+                return Math.max(0, Math.sin(t + i * 0.2) * 8 * breathe + 2);
+            });
         }
+
+        draw(data);
         animationId = requestAnimationFrame(tick);
     }
 </script>
@@ -206,9 +186,11 @@
 
     .top-audio-bar {
         display: block;
+        border-radius: 2px;
+        background: rgba(var(--tr), var(--tg), var(--tb), 0.03);
         will-change: transform;
         filter: drop-shadow(0 0 6px rgba(var(--tr), var(--tg), var(--tb), 0.15));
-        transition: filter 0.3s ease;
+        transition: background 0.3s ease, filter 0.3s ease;
     }
 
     .bar-label {
