@@ -3,7 +3,6 @@
   import Telemetry from "./lib/components/Telemetry.svelte";
   import TopAudioBar from "./lib/components/TopAudioBar.svelte";
   import ChatModule from "./lib/components/ChatModule.svelte";
-  import AudioDevicePanel from "./lib/components/AudioDevicePanel.svelte";
   import { onMount } from "svelte";
   import {
     currentState,
@@ -11,6 +10,14 @@
     latencyMs,
     isConnected,
   } from "./lib/stores/eveState";
+  import { stateColor, hexToRgb } from "./lib/stores/theme";
+
+  let tr = 74, tg = 229, tb = 255;
+
+  $: {
+    const c = hexToRgb($stateColor);
+    tr = c.r; tg = c.g; tb = c.b;
+  }
 
   interface Message {
     time: string;
@@ -113,19 +120,20 @@
   }
 </script>
 
-<main data-tauri-drag-region>
-  <Telemetry />
-
-  <div class="audio-bar-container">
+  <main
+    data-tauri-drag-region
+    style="--tr: {tr}; --tg: {tg}; --tb: {tb}"
+  >
     <TopAudioBar />
-  </div>
 
-  <ThreeOrb />
+    <ThreeOrb />
 
-  <ChatModule {messages} bind:inputValue onsend={handleSendMessage} />
+    <div class="left-dashboard">
+      <Telemetry />
+    </div>
 
-  <AudioDevicePanel />
-</main>
+    <ChatModule {messages} bind:inputValue onsend={handleSendMessage} />
+  </main>
 
 <style>
   main {
@@ -138,12 +146,15 @@
     position: relative;
   }
 
-  .audio-bar-container {
-    position: absolute;
-    top: 30px;
-    left: 50%;
-    transform: translateX(-50%);
+  .left-dashboard {
+    position: fixed;
+    left: 24px;
+    top: 84px;
     z-index: 100;
     pointer-events: none;
+  }
+
+  .left-dashboard > :global(*) {
+    pointer-events: auto;
   }
 </style>

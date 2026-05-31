@@ -7,8 +7,15 @@ import json
 import platform
 import os
 import subprocess
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Dict
+
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
 
 def get_system_info() -> Dict[str, Any]:
     info: Dict[str, Any] = {}
@@ -88,12 +95,66 @@ def get_system_info() -> Dict[str, Any]:
     return info
 
 
+def get_system_stats() -> Dict[str, Any]:
+    stats: Dict[str, Any] = {}
+
+    if HAS_PSUTIL:
+        stats["cpu_percent"] = psutil.cpu_percent(interval=0)
+        mem = psutil.virtual_memory()
+        stats["ram_percent"] = round(mem.percent, 1)
+        stats["ram_used_gb"] = round(mem.used / (1024 ** 3), 1)
+        stats["ram_total_gb"] = round(mem.total / (1024 ** 3), 1)
+        stats["uptime_seconds"] = int(time.time() - psutil.boot_time())
+    else:
+        stats["cpu_percent"] = 0
+        stats["ram_percent"] = 0
+        stats["ram_used_gb"] = 0
+        stats["ram_total_gb"] = 0
+        stats["uptime_seconds"] = 0
+
+    stats["gpu_percent"] = None
+    stats["vram_percent"] = None
+    stats["vram_used_gb"] = None
+    stats["vram_total_gb"] = None
+    stats["gpu_name"] = None
+
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=utilization.gpu,memory.used,memory.total,name",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True, text=True, check=True, timeout=2,
+        )
+        parts = [p.strip() for p in result.stdout.strip().split(", ")]
+        if len(parts) >= 4:
+            stats["gpu_percent"] = float(parts[0])
+            vram_used = float(parts[1])
+            vram_total = float(parts[2])
+            stats["vram_used_gb"] = round(vram_used / 1024, 1)
+            stats["vram_total_gb"] = round(vram_total / 1024, 1)
+            stats["vram_percent"] = round((vram_used / vram_total) * 100, 1) if vram_total > 0 else 0
+            stats["gpu_name"] = parts[3]
+    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError, IndexError):
+        pass
+
+    return stats
+
+
 class CORSRequestHandler(BaseHTTPRequestHandler):
     """Simple handler so the frontend can fetch system info without CORS issues."""
 
     def do_GET(self) -> None:
         if self.path == "/system-info":
             data = get_system_info()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(data).encode())
+        elif self.path == "/system-stats":
+            data = get_system_stats()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
@@ -117,7 +178,9 @@ class CORSRequestHandler(BaseHTTPRequestHandler):
 def main() -> None:
     port = 8766
     server = HTTPServer(("127.0.0.1", port), CORSRequestHandler)
-    print(f"Eve System Info server running at http://127.0.0.1:{port}/system-info")
+    print(f"Eve System Info server running at http://127.0.0.1:{port}")
+    print(f"  GET /system-info  — hardware specs")
+    print(f"  GET /system-stats — live utilization (cpu, ram, gpu, vram)")
     print("Press Ctrl+C to stop.")
     try:
         server.serve_forever()
