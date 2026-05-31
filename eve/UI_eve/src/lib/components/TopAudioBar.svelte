@@ -71,8 +71,8 @@
         // ── Scan line overlay ──────────────────────────────────────────
         scanLinePos = (scanLinePos + 0.6) % h;
         ctx.save();
-        ctx.globalAlpha = 0.08;
-        ctx.strokeStyle = rgba(0.5);
+        ctx.globalAlpha = 0.15;
+        ctx.strokeStyle = rgba(0.7);
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, scanLinePos);
@@ -91,12 +91,12 @@
 
             // Center bars are brighter, edges are dimmer
             const centerT = 1 - Math.abs(i - numBars / 2) / (numBars / 2);
-            const brightness = 0.3 + centerT * 0.7;
-            const alpha = 0.2 + percent * 0.6;
+            const brightness = 0.5 + centerT * 0.5;
+            const alpha = 0.4 + percent * 0.6;
 
             // Glow for louder bars
-            ctx.shadowColor = rgba(0.6);
-            ctx.shadowBlur = percent > 0.3 ? 8 + percent * 12 : 0;
+            ctx.shadowColor = rgba(0.8);
+            ctx.shadowBlur = percent > 0.15 ? 6 + percent * 18 : 2;
 
             ctx.lineCap = "round";
             ctx.lineWidth = barWidth;
@@ -188,7 +188,7 @@
         transform: translateX(-50%);
         z-index: 100;
         pointer-events: none;
-        border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.08);
+        border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.2);
         border-radius: 4px;
         padding: 2px;
         transition: border-color 0.3s ease;
@@ -197,9 +197,9 @@
     .top-audio-bar {
         display: block;
         border-radius: 2px;
-        background: rgba(var(--tr), var(--tg), var(--tb), 0.03);
+        background: rgba(var(--tr), var(--tg), var(--tb), 0.08);
         will-change: transform;
-        filter: drop-shadow(0 0 6px rgba(var(--tr), var(--tg), var(--tb), 0.15));
+        filter: drop-shadow(0 0 10px rgba(var(--tr), var(--tg), var(--tb), 0.3));
         transition: background 0.3s ease, filter 0.3s ease;
     }
 
@@ -213,7 +213,7 @@
         font-family: "JetBrains Mono", monospace;
         font-size: 0.55rem;
         letter-spacing: 3px;
-        color: rgba(var(--tr), var(--tg), var(--tb), 0.25);
+        color: rgba(var(--tr), var(--tg), var(--tb), 0.5);
         transition: color 0.3s ease;
     }
 </style>
