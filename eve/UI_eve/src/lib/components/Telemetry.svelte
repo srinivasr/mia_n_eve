@@ -63,8 +63,8 @@
 
         const cx = w / 2;
         const cy = h / 2 + 2;
-        const r = 27;
-        const lw = 7;
+        const r = 33;
+        const lw = 8;
 
         const isNa = pct === -1;
         const displayPct = isNa ? 0 : pct;
@@ -90,23 +90,23 @@
 
         // Inner glow line
         ctx.beginPath();
-        ctx.arc(cx, cy, r - lw - 3, ARC_START, fillEnd, false);
+        ctx.arc(cx, cy, r - lw - 4, ARC_START, fillEnd, false);
         ctx.strokeStyle = color + "20";
         ctx.lineWidth = 2;
         ctx.stroke();
 
         // Percentage text
         ctx.fillStyle = isNa ? "rgba(255,255,255,0.25)" : "#f0f4ff";
-        ctx.font = 'bold 20px "JetBrains Mono", monospace';
+        ctx.font = 'bold 24px "JetBrains Mono", monospace';
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(txt, cx, cy - 3);
+        ctx.fillText(txt, cx, cy - 4);
 
         // Label
         ctx.fillStyle = isNa ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.35)";
-        ctx.font = '8px "JetBrains Mono", monospace';
+        ctx.font = '9px "JetBrains Mono", monospace';
         ctx.textBaseline = "top";
-        ctx.fillText(label, cx, cy + 18);
+        ctx.fillText(label, cx, cy + 22);
     }
 
     function drawSparkline(
@@ -235,20 +235,20 @@
 
     <div class="gauges">
         <div class="cell">
-            <canvas bind:this={cpuCanvas} width={82} height={82}></canvas>
-            <canvas bind:this={cpuSpark} width={90} height={20} class="spark"></canvas>
+            <canvas bind:this={cpuCanvas} width={100} height={100}></canvas>
+            <canvas bind:this={cpuSpark} width={110} height={26} class="spark"></canvas>
         </div>
         <div class="cell">
-            <canvas bind:this={ramCanvas} width={82} height={82}></canvas>
-            <canvas bind:this={ramSpark} width={90} height={20} class="spark"></canvas>
+            <canvas bind:this={ramCanvas} width={100} height={100}></canvas>
+            <canvas bind:this={ramSpark} width={110} height={26} class="spark"></canvas>
         </div>
         <div class="cell">
-            <canvas bind:this={gpuCanvas} width={82} height={82}></canvas>
-            <canvas bind:this={gpuSpark} width={90} height={20} class="spark"></canvas>
+            <canvas bind:this={gpuCanvas} width={100} height={100}></canvas>
+            <canvas bind:this={gpuSpark} width={110} height={26} class="spark"></canvas>
         </div>
         <div class="cell">
-            <canvas bind:this={vramCanvas} width={82} height={82}></canvas>
-            <canvas bind:this={vramSpark} width={90} height={20} class="spark"></canvas>
+            <canvas bind:this={vramCanvas} width={100} height={100}></canvas>
+            <canvas bind:this={vramSpark} width={110} height={26} class="spark"></canvas>
         </div>
     </div>
 
@@ -287,8 +287,8 @@
         backdrop-filter: blur(14px);
         border: 1px solid rgba(255, 255, 255, 0.07);
         border-radius: 14px;
-        padding: 14px;
-        width: 210px;
+        padding: 16px;
+        width: 252px;
         z-index: 100;
         box-shadow:
             0 10px 40px rgba(0, 0, 0, 0.5),
@@ -298,19 +298,19 @@
     }
 
     .section-header {
-        font-size: 0.6rem;
+        font-size: 0.65rem;
         letter-spacing: 2.5px;
         color: rgba(255, 255, 255, 0.25);
         font-weight: 600;
-        margin-bottom: 8px;
-        padding-bottom: 5px;
+        margin-bottom: 10px;
+        padding-bottom: 6px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
 
     .gauges {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 2px;
+        gap: 4px;
         justify-items: center;
     }
 
@@ -321,26 +321,26 @@
     }
 
     .spark {
-        margin-top: -6px;
-        filter: drop-shadow(0 0 3px rgba(0, 180, 255, 0.15));
+        margin-top: -8px;
+        filter: drop-shadow(0 0 4px rgba(0, 180, 255, 0.15));
     }
 
     .runtime {
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 6px;
     }
 
     .metric-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 0.75rem;
+        font-size: 0.8rem;
     }
 
     .label {
         color: rgba(255, 255, 255, 0.35);
-        font-size: 0.65rem;
+        font-size: 0.7rem;
         letter-spacing: 1px;
         text-transform: uppercase;
     }
@@ -348,7 +348,7 @@
     .value {
         font-family: "JetBrains Mono", monospace;
         font-weight: 500;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         color: #e2e8f0;
     }
 
