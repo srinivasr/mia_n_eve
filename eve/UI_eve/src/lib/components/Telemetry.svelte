@@ -50,10 +50,12 @@
     let hasGpu = true;
 
     function gaugeColor(pct: number): string {
-        const hue = Math.max(0, 180 - (pct / 100) * 200);
-        const sat = 90;
-        const lit = 55 + (pct / 100) * 10;
-        return `hsl(${hue}, ${sat}%, ${lit}%)`;
+        const h = pct < 50
+            ? 40 - (pct / 50) * 10
+            : 30 - ((pct - 50) / 50) * 30;
+        const s = pct < 50 ? 85 + (pct / 50) * 10 : 95;
+        const l = pct < 50 ? 45 + (pct / 50) * 15 : 60 - ((pct - 50) / 50) * 20;
+        return `hsl(${h}, ${s}%, ${l}%)`;
     }
 
     function drawGauge(
@@ -70,8 +72,8 @@
 
         const cx = w / 2;
         const cy = h / 2 + 2;
-        const r = 33;
-        const lw = 8;
+        const r = 38;
+        const lw = 7;
 
         const isNa = pct === -1;
         const displayPct = isNa ? 0 : pct;
@@ -96,37 +98,30 @@
         ctx.lineCap = "round";
         ctx.stroke();
 
-        // Inner glow line
-        ctx.beginPath();
-        ctx.arc(cx, cy, r - lw - 4, ARC_START, fillEnd, false);
-        ctx.strokeStyle = color + "20";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
         // Percentage text
         ctx.fillStyle = isNa ? "rgba(255,255,255,0.25)" : "#f0f4ff";
-        ctx.font = 'bold 24px "JetBrains Mono", monospace';
+        ctx.font = 'bold 20px "JetBrains Mono", monospace';
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(txt, cx, cy - 4);
+        ctx.fillText(txt, cx, cy - 2);
 
         // Info text (e.g. "4.2G")
         if (info) {
             ctx.fillStyle = isNa
                 ? "rgba(255,255,255,0.1)"
                 : "rgba(255,255,255,0.25)";
-            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.font = '9px "JetBrains Mono", monospace';
             ctx.textBaseline = "top";
-            ctx.fillText(info, cx, cy + 12);
+            ctx.fillText(info, cx, cy + 14);
         }
 
         // Label
         ctx.fillStyle = isNa
             ? "rgba(255,255,255,0.12)"
             : "rgba(255,255,255,0.35)";
-        ctx.font = '8px "JetBrains Mono", monospace';
+        ctx.font = '7px "JetBrains Mono", monospace';
         ctx.textBaseline = "top";
-        ctx.fillText(label, cx, cy + (info ? 24 : 22));
+        ctx.fillText(label, cx, cy + (info ? 24 : 20));
     }
 
     function drawSparkline(
@@ -374,7 +369,7 @@
 
     .spark {
         margin-top: -8px;
-        filter: drop-shadow(0 0 4px rgba(0, 180, 255, 0.15));
+        filter: drop-shadow(0 0 4px rgba(255, 180, 40, 0.15));
     }
 
     .runtime {
@@ -405,7 +400,7 @@
     }
 
     .state-val {
-        color: #22d3ee;
+        color: #f59e0b;
     }
 
     .connected {
