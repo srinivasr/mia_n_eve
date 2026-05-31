@@ -10,6 +10,15 @@
     let camera: THREE.PerspectiveCamera;
     let particleSystem: THREE.Points;
     let shaderMaterial: THREE.ShaderMaterial;
+    let gridFloor: THREE.LineSegments | null = null;
+    let floorGlow: THREE.Sprite | null = null;
+    let equatorialRing: THREE.Mesh | null = null;
+    let tiltedRing: THREE.Mesh | null = null;
+    let polarRing: THREE.Mesh | null = null;
+    let pulseRing: THREE.Mesh | null = null;
+    let pulseActive = false;
+    let pulseTimer = 0;
+    let previousState: string = "Idle";
 
     const targetColor = new THREE.Color();
     const currentColor = new THREE.Color();
@@ -76,6 +85,15 @@
         targetSpeed = config.speed;
         targetScale = config.scale;
         targetBreathIntensity = config.breathIntensity;
+
+        if (
+            previousState !== $currentState &&
+            ($currentState === "Listening" || $currentState === "Speaking")
+        ) {
+            pulseActive = true;
+            pulseTimer = 0;
+        }
+        previousState = $currentState;
     }
 
     // ── GLSL Shaders ──────────────────────────────────────────────────
@@ -154,7 +172,124 @@
         if (resizeObserver && container) resizeObserver.unobserve(container);
         if (animationId) cancelAnimationFrame(animationId);
         if (renderer) renderer.dispose();
+        gridFloor = null;
+        floorGlow = null;
+        equatorialRing = null;
+        tiltedRing = null;
+        polarRing = null;
+        pulseRing = null;
     });
+
+    function createGridFloor() {
+        const size = 400;
+        const divisions = 80;
+        const step = size / divisions;
+        const half = size / 2;
+
+        const positions: number[] = [];
+        const colors: number[] = [];
+        const centerColor = new THREE.Color(0x00d4ff);
+        const edgeColor = new THREE.Color(0x001a33);
+
+        for (let i = 0; i <= divisions; i++) {
+            const x = -half + i * step;
+            const t = Math.abs(x) / half;
+            const c = centerColor.clone().lerp(edgeColor, t);
+            positions.push(x, 0, -half, x, 0, half);
+            colors.push(c.r, c.g, c.b, c.r, c.g, c.b);
+        }
+
+        for (let i = 0; i <= divisions; i++) {
+            const z = -half + i * step;
+            const t = Math.abs(z) / half;
+            const c = centerColor.clone().lerp(edgeColor, t);
+            positions.push(-half, 0, z, half, 0, z);
+            colors.push(c.r, c.g, c.b, c.r, c.g, c.b);
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+
+        const material = new THREE.LineBasicMaterial({
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.1,
+            depthWrite: false,
+        });
+
+        gridFloor = new THREE.LineSegments(geometry, material);
+        gridFloor.position.y = -35;
+        scene.add(gridFloor);
+
+        const glowCanvas = document.createElement("canvas");
+        glowCanvas.width = 256;
+        glowCanvas.height = 256;
+        const ctx = glowCanvas.getContext("2d")!;
+        const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+        gradient.addColorStop(0, "rgba(0, 180, 255, 0.25)");
+        gradient.addColorStop(0.3, "rgba(0, 100, 200, 0.08)");
+        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 256, 256);
+
+        const glowTexture = new THREE.CanvasTexture(glowCanvas);
+        const glowMaterial = new THREE.SpriteMaterial({
+            map: glowTexture,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            opacity: 0.5,
+        });
+        floorGlow = new THREE.Sprite(glowMaterial);
+        floorGlow.position.set(0, -33, 0);
+        floorGlow.scale.set(160, 160, 1);
+        scene.add(floorGlow);
+    }
+
+    function createOrbitalRings() {
+        const ringGeo = (radius: number, tube: number) =>
+            new THREE.TorusGeometry(radius, tube, 24, 120);
+
+        const ringMat = (color: number, opacity: number) =>
+            new THREE.MeshBasicMaterial({
+                color,
+                transparent: true,
+                opacity,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                side: THREE.DoubleSide,
+            });
+
+        equatorialRing = new THREE.Mesh(ringGeo(40, 0.08), ringMat(0x00d4ff, 0.35));
+        equatorialRing.position.y = 20;
+        scene.add(equatorialRing);
+
+        tiltedRing = new THREE.Mesh(ringGeo(43, 0.06), ringMat(0x0ea5e9, 0.2));
+        tiltedRing.position.y = 20;
+        tiltedRing.rotation.x = 0.7;
+        tiltedRing.rotation.z = 0.5;
+        scene.add(tiltedRing);
+
+        polarRing = new THREE.Mesh(ringGeo(37, 0.04), ringMat(0x7dd3fc, 0.15));
+        polarRing.position.y = 20;
+        polarRing.rotation.x = Math.PI / 2;
+        scene.add(polarRing);
+
+        const pulseGeo = new THREE.RingGeometry(0.3, 0.8, 64);
+        const pulseMat = new THREE.MeshBasicMaterial({
+            color: 0x00d4ff,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+        });
+        pulseRing = new THREE.Mesh(pulseGeo, pulseMat);
+        pulseRing.position.y = 20;
+        pulseRing.rotation.x = -Math.PI / 2;
+        scene.add(pulseRing);
+    }
 
     function initScene() {
         scene = new THREE.Scene();
@@ -224,6 +359,9 @@
         particleSystem.position.y = 20;
         scene.add(particleSystem);
         currentColor.setHex(stateConfigs["Idle"].color);
+
+        createGridFloor();
+        createOrbitalRings();
     }
 
     let lastTime = performance.now();
@@ -259,6 +397,37 @@
         // Apply frame-rate independent rotation
         particleSystem.rotation.y += currentSpeed * dt;
         particleSystem.rotation.x += currentSpeed * 0.5 * dt;
+
+        // ── Orbital ring animation ────────────────────────────────────
+        if (equatorialRing) equatorialRing.rotation.z += 0.003 * dt;
+        if (tiltedRing) {
+            tiltedRing.rotation.y += 0.005 * dt;
+            tiltedRing.rotation.x += 0.001 * dt;
+        }
+        if (polarRing) polarRing.rotation.y -= 0.004 * dt;
+
+        // ── Radar pulse animation ─────────────────────────────────────
+        if (pulseActive && pulseRing) {
+            pulseTimer += 0.025 * dt;
+            const s = 1 + pulseTimer * 3;
+            const o = Math.max(0, 1 - pulseTimer * 1.2);
+            pulseRing.scale.set(s, s, s);
+            pulseRing.material.opacity = o * 0.6;
+            if (pulseTimer >= 1) {
+                pulseActive = false;
+                pulseRing.scale.set(1, 1, 1);
+                pulseRing.material.opacity = 0;
+            }
+        }
+
+        // ── Grid floor subtle animation ───────────────────────────────
+        if (gridFloor) {
+            gridFloor.position.z = Math.sin(Date.now() * 0.00008) * 1.5;
+        }
+        if (floorGlow) {
+            const pulse = Math.sin(Date.now() * 0.001) * 0.1 + 0.9;
+            floorGlow.material.opacity = 0.4 * pulse;
+        }
 
         renderer.render(scene, camera);
     }
