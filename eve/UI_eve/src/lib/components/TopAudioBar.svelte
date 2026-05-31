@@ -19,6 +19,7 @@
 
     let displayColor = "#4ae5ff";
     let targetDisplayColor = "#4ae5ff";
+    let displayR = 74, displayG = 229, displayB = 255;
 
     onMount(() => {
         tick();
@@ -34,7 +35,14 @@
         const r = ((ca >> 16) & 0xff) * (1 - t) + ((cb >> 16) & 0xff) * t;
         const g = ((ca >> 8) & 0xff) * (1 - t) + ((cb >> 8) & 0xff) * t;
         const bv = (ca & 0xff) * (1 - t) + (cb & 0xff) * t;
+        displayR = r | 0;
+        displayG = g | 0;
+        displayB = bv | 0;
         return `rgb(${r | 0},${g | 0},${bv | 0})`;
+    }
+
+    function rgba(a: number): string {
+        return `rgba(${displayR},${displayG},${displayB},${a})`;
     }
 
     function draw(data: number[]) {
@@ -64,7 +72,7 @@
         scanLinePos = (scanLinePos + 0.6) % h;
         ctx.save();
         ctx.globalAlpha = 0.08;
-        ctx.strokeStyle = displayColor;
+        ctx.strokeStyle = rgba(0.5);
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, scanLinePos);
@@ -87,7 +95,7 @@
             const alpha = 0.2 + percent * 0.6;
 
             // Glow for louder bars
-            ctx.shadowColor = displayColor;
+            ctx.shadowColor = rgba(0.6);
             ctx.shadowBlur = percent > 0.3 ? 8 + percent * 12 : 0;
 
             ctx.lineCap = "round";
@@ -97,9 +105,9 @@
             const topY = midY - barHeight / 2;
             const botY = midY + barHeight / 2;
             const gradient = ctx.createLinearGradient(0, topY, 0, botY);
-            gradient.addColorStop(0, `${displayColor}${alpha * brightness * 0.6})`);
-            gradient.addColorStop(0.5, `${displayColor}${alpha * brightness})`);
-            gradient.addColorStop(1, `${displayColor}${alpha * brightness * 0.4})`);
+            gradient.addColorStop(0, rgba(alpha * brightness * 0.6));
+            gradient.addColorStop(0.5, rgba(alpha * brightness));
+            gradient.addColorStop(1, rgba(alpha * brightness * 0.4));
 
             ctx.strokeStyle = gradient;
 
@@ -111,8 +119,8 @@
 
         // ── Center indicator dot ───────────────────────────────────────
         ctx.shadowBlur = 10;
-        ctx.shadowColor = displayColor;
-        ctx.fillStyle = displayColor;
+        ctx.shadowColor = rgba(0.8);
+        ctx.fillStyle = rgba(0.8);
         ctx.globalAlpha = 0.4;
         ctx.beginPath();
         ctx.arc(center, midY, 2, 0, Math.PI * 2);
@@ -125,38 +133,40 @@
         const t = Date.now() * 0.003;
         let data: number[];
 
+        const N = 28;
         if ($captureRunning) {
             const val = $rmsLevel;
             if (val > 0) {
-                data = Array.from({ length: 32 }, (_, i) => {
-                    const variance = Math.sin(t + i) * 20;
+                data = Array.from({ length: N }, (_, i) => {
+                    const variance = Math.sin(t + i * 0.3) * 25;
                     return Math.max(0, Math.min(255, val + variance));
                 });
             } else {
-                data = Array.from({ length: 32 }, (_, i) => {
-                    const noise = Math.random() * 12;
-                    return Math.max(0, Math.sin(t + i * 0.4) * 8 + noise);
+                data = Array.from({ length: N }, (_, i) => {
+                    const breathe = Math.sin(t * 0.6 + i * 0.2) * 0.5 + 0.5;
+                    const noise = Math.random() * 30;
+                    return Math.max(0, breathe * 40 + noise);
                 });
             }
         } else if ($currentState === "Speaking") {
-            data = Array.from({ length: 32 }, (_, i) => {
+            data = Array.from({ length: N }, (_, i) => {
                 const wave = Math.sin(t + i * 0.5) * Math.cos(t * 0.3);
                 return Math.max(0, Math.abs(wave) * 220);
             });
         } else if ($currentState === "Thinking") {
-            data = Array.from({ length: 32 }, (_, i) => {
-                const pulse = Math.sin(t * 2.5 - (i / 32) * Math.PI * 6);
-                return Math.max(0, pulse > 0.7 ? 180 : 8);
+            data = Array.from({ length: N }, (_, i) => {
+                const pulse = Math.sin(t * 2.5 - (i / N) * Math.PI * 6);
+                return Math.max(0, pulse > 0.7 ? 200 : 12);
             });
         } else if ($currentState === "Listening") {
-            data = Array.from({ length: 32 }, (_, i) => {
+            data = Array.from({ length: N }, (_, i) => {
                 const noise = Math.random() * 80;
                 return Math.max(0, Math.sin(t + i * 0.3) * 50 + noise);
             });
         } else {
-            data = Array.from({ length: 32 }, (_, i) => {
+            data = Array.from({ length: N }, (_, i) => {
                 const breathe = Math.sin(t * 0.5) * 0.3 + 0.7;
-                return Math.max(0, Math.sin(t + i * 0.2) * 8 * breathe + 2);
+                return Math.max(0, Math.sin(t + i * 0.25) * 12 * breathe + 4);
             });
         }
 
