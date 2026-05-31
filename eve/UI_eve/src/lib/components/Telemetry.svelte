@@ -22,6 +22,12 @@
     let gpuTarget: number | null = 0;
     let vramTarget: number | null = 0;
     let gpuName = "GPU";
+    let ramUsedGb = 0;
+    let ramTotalGb = 0;
+    let vramUsedGb = 0;
+    let vramTotalGb = 0;
+    let ramUsedDisplay = "";
+    let vramUsedDisplay = "";
 
     // ── History for sparklines ────────────────────────────────────────
     const MAX_HISTORY = 40;
@@ -54,6 +60,7 @@
         canvas: HTMLCanvasElement,
         pct: number,
         label: string,
+        info = "",
     ) {
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
@@ -102,11 +109,20 @@
         ctx.textBaseline = "middle";
         ctx.fillText(txt, cx, cy - 4);
 
+        // Info text (e.g. "4.2G")
+        if (info) {
+            ctx.fillStyle = isNa ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.25)";
+            ctx.font = '10px "JetBrains Mono", monospace';
+            ctx.textBaseline = "top";
+            ctx.fillText(info, cx, cy + 12);
+        }
+
         // Label
         ctx.fillStyle = isNa ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.35)";
-        ctx.font = '9px "JetBrains Mono", monospace';
+        ctx.font = '8px "JetBrains Mono", monospace';
         ctx.textBaseline = "top";
-        ctx.fillText(label, cx, cy + 22);
+        ctx.fillText(label, cx, cy + (info ? 24 : 22));
+    }
     }
 
     function drawSparkline(
@@ -160,6 +176,11 @@
             gpuTarget = d.gpu_percent;
             vramTarget = d.vram_percent;
 
+            if (d.ram_used_gb != null) ramUsedGb = d.ram_used_gb;
+            if (d.ram_total_gb != null) ramTotalGb = d.ram_total_gb;
+            if (d.vram_used_gb != null) vramUsedGb = d.vram_used_gb;
+            if (d.vram_total_gb != null) vramTotalGb = d.vram_total_gb;
+
             if (d.uptime_seconds) bootTimestamp = d.uptime_seconds;
 
             if (d.gpu_name) {
@@ -205,10 +226,13 @@
         const gpuColor = hasGpu ? gaugeColor(gpuVal) : "rgba(255,255,255,0.12)";
         const vramColor = hasGpu ? gaugeColor(vramVal) : "rgba(255,255,255,0.12)";
 
+        ramUsedDisplay = ramUsedGb ? `${ramUsedGb.toFixed(1)}G` : "";
+        vramUsedDisplay = vramUsedGb ? `${vramUsedGb.toFixed(1)}G` : "";
+
         drawGauge(cpuCanvas, cpuVal, "CPU");
-        drawGauge(ramCanvas, ramVal, "RAM");
+        drawGauge(ramCanvas, ramVal, "RAM", ramUsedDisplay);
         drawGauge(gpuCanvas, hasGpu ? gpuVal : -1, gpuName);
-        drawGauge(vramCanvas, hasGpu ? vramVal : -1, "VRAM");
+        drawGauge(vramCanvas, hasGpu ? vramVal : -1, "VRAM", vramUsedDisplay);
 
         drawSparkline(cpuSpark, cpuHist, gaugeColor(cpuVal));
         drawSparkline(ramSpark, ramHist, gaugeColor(ramVal));
