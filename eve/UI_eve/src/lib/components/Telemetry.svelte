@@ -337,7 +337,7 @@
         border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.25);
         border-radius: 14px;
         padding: 16px;
-        width: 252px;
+        width: 290px;
         box-shadow:
             0 10px 40px rgba(0, 0, 0, 0.5),
             inset 0 1px 0 rgba(255, 255, 255, 0.04);

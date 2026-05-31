@@ -3,7 +3,6 @@
   import Telemetry from "./lib/components/Telemetry.svelte";
   import TopAudioBar from "./lib/components/TopAudioBar.svelte";
   import ChatModule from "./lib/components/ChatModule.svelte";
-  import AudioDevicePanel from "./lib/components/AudioDevicePanel.svelte";
   import { onMount } from "svelte";
   import {
     currentState,
@@ -129,9 +128,8 @@
 
     <ThreeOrb />
 
-    <div class="right-dashboard">
+    <div class="left-dashboard">
       <Telemetry />
-      <AudioDevicePanel />
     </div>
 
     <ChatModule {messages} bind:inputValue onsend={handleSendMessage} />
@@ -148,18 +146,15 @@
     position: relative;
   }
 
-  .right-dashboard {
+  .left-dashboard {
     position: fixed;
-    right: 24px;
+    left: 24px;
     top: 84px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
     z-index: 100;
     pointer-events: none;
   }
 
-  .right-dashboard > :global(*) {
+  .left-dashboard > :global(*) {
     pointer-events: auto;
   }
 </style>

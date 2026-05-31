@@ -111,7 +111,7 @@
 
         void main() {
             float dist = length(position);
-            vDistFromCenter = clamp(dist / 30.0, 0.0, 1.0);
+            vDistFromCenter = clamp(dist / 60.0, 0.0, 1.0);
 
             // Each particle breathes at its own rhythm
             float breath = sin(uTime * 2.0 + aPhase) * 0.5 + 0.5;
@@ -208,8 +208,14 @@
         }
 
         const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-        geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+        geometry.setAttribute(
+            "position",
+            new THREE.Float32BufferAttribute(positions, 3),
+        );
+        geometry.setAttribute(
+            "color",
+            new THREE.Float32BufferAttribute(colors, 3),
+        );
 
         const material = new THREE.LineBasicMaterial({
             vertexColors: true,
@@ -219,7 +225,7 @@
         });
 
         gridFloor = new THREE.LineSegments(geometry, material);
-        gridFloor.position.y = -35;
+        gridFloor.position.y = -75;
         scene.add(gridFloor);
 
         const glowCanvas = document.createElement("canvas");
@@ -242,7 +248,7 @@
             opacity: 0.5,
         });
         floorGlow = new THREE.Sprite(glowMaterial);
-        floorGlow.position.set(0, -33, 0);
+        floorGlow.position.set(0, -73, 0);
         floorGlow.scale.set(160, 160, 1);
         scene.add(floorGlow);
     }
@@ -261,22 +267,25 @@
                 side: THREE.DoubleSide,
             });
 
-        equatorialRing = new THREE.Mesh(ringGeo(40, 0.08), ringMat(0x00d4ff, 0.35));
-        equatorialRing.position.y = 20;
+        equatorialRing = new THREE.Mesh(
+            ringGeo(65, 0.08),
+            ringMat(0x00d4ff, 0.4),
+        );
+        equatorialRing.position.y = 5;
         scene.add(equatorialRing);
 
-        tiltedRing = new THREE.Mesh(ringGeo(43, 0.06), ringMat(0x0ea5e9, 0.2));
-        tiltedRing.position.y = 20;
+        tiltedRing = new THREE.Mesh(ringGeo(70, 0.06), ringMat(0x0ea5e9, 0.3));
+        tiltedRing.position.y = 5;
         tiltedRing.rotation.x = 0.7;
         tiltedRing.rotation.z = 0.5;
         scene.add(tiltedRing);
 
-        polarRing = new THREE.Mesh(ringGeo(37, 0.04), ringMat(0x7dd3fc, 0.15));
-        polarRing.position.y = 20;
+        polarRing = new THREE.Mesh(ringGeo(62, 0.05), ringMat(0x7dd3fc, 0.2));
+        polarRing.position.y = 5;
         polarRing.rotation.x = Math.PI / 2;
         scene.add(polarRing);
 
-        const pulseGeo = new THREE.RingGeometry(0.3, 0.8, 64);
+        const pulseGeo = new THREE.RingGeometry(2, 5, 64);
         const pulseMat = new THREE.MeshBasicMaterial({
             color: 0x00d4ff,
             transparent: true,
@@ -286,7 +295,7 @@
             depthWrite: false,
         });
         pulseRing = new THREE.Mesh(pulseGeo, pulseMat);
-        pulseRing.position.y = 20;
+        pulseRing.position.y = 5;
         pulseRing.rotation.x = -Math.PI / 2;
         scene.add(pulseRing);
     }
@@ -300,7 +309,7 @@
             1,
             1000,
         );
-        camera.position.z = 250;
+        camera.position.z = 350;
         renderer = new THREE.WebGLRenderer({
             antialias: true,
             alpha: true,
@@ -310,13 +319,13 @@
         container.appendChild(renderer.domElement);
 
         // ── Particle geometry ─────────────────────────────────────────
-        const particleCount = 25000;
+        const particleCount = 40000;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const sizes = new Float32Array(particleCount);
         const phases = new Float32Array(particleCount);
         const opacities = new Float32Array(particleCount);
-        const radius = 35;
+        const radius = 60;
 
         for (let i = 0; i < particleCount; i++) {
             const theta = Math.random() * Math.PI * 2;
@@ -360,7 +369,7 @@
         });
 
         particleSystem = new THREE.Points(geometry, shaderMaterial);
-        particleSystem.position.y = 20;
+        particleSystem.position.y = 5;
         scene.add(particleSystem);
         currentColor.setHex(stateConfigs["Idle"].color);
 
@@ -394,7 +403,8 @@
         particleSystem.scale.set(scaleMod, scaleMod, scaleMod);
 
         // Rings breathe with the orb — same scale so they stay connected
-        if (equatorialRing) equatorialRing.scale.set(scaleMod, scaleMod, scaleMod);
+        if (equatorialRing)
+            equatorialRing.scale.set(scaleMod, scaleMod, scaleMod);
         if (tiltedRing) tiltedRing.scale.set(scaleMod, scaleMod, scaleMod);
         if (polarRing) polarRing.scale.set(scaleMod, scaleMod, scaleMod);
 
@@ -418,7 +428,7 @@
         // ── Radar pulse animation ─────────────────────────────────────
         if (pulseActive && pulseRing) {
             pulseTimer += 0.025 * dt;
-            const s = 1 + pulseTimer * 3;
+            const s = 1 + pulseTimer * 5;
             const o = Math.max(0, 1 - pulseTimer * 1.2);
             pulseRing.scale.set(s, s, s);
             pulseRing.material.opacity = o * 0.6;
