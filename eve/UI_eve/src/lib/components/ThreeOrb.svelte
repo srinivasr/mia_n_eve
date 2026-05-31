@@ -393,6 +393,11 @@
 
         particleSystem.scale.set(scaleMod, scaleMod, scaleMod);
 
+        // Rings breathe with the orb — same scale so they stay connected
+        if (equatorialRing) equatorialRing.scale.set(scaleMod, scaleMod, scaleMod);
+        if (tiltedRing) tiltedRing.scale.set(scaleMod, scaleMod, scaleMod);
+        if (polarRing) polarRing.scale.set(scaleMod, scaleMod, scaleMod);
+
         // Drive the shader
         shaderMaterial.uniforms.uTime.value = Date.now() * 0.001;
         shaderMaterial.uniforms.uColor.value.copy(currentColor);
