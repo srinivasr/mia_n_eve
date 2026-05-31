@@ -150,9 +150,12 @@ fn set_output_device(name: Option<String>, state: State<'_, AudioState>) {
 }
 
 fn main() {
-    // webkit dmabuf was causing rendering glitches on some nvidia systems,
-    // so we just force-disable it for now. TODO: make this configurable.
-    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    // Enable GPU-accelerated compositing for smooth animations.
+    // WEBKIT_DISABLE_DMABUF_RENDERER=0 enables DMA-BUF (hardware compositing via GPU).
+    // WEBKIT_FORCE_COMPOSITING_MODE=1 ensures the compositor always runs on GPU.
+    // If you get rendering glitches on Nvidia, set DISABLE_DMABUF=1 and FORCE=0.
+    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "0");
+    std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

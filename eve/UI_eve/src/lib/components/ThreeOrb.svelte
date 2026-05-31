@@ -301,7 +301,11 @@
             1000,
         );
         camera.position.z = 250;
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: true,
+            powerPreference: "high-performance",
+        });
 
         container.appendChild(renderer.domElement);
 
