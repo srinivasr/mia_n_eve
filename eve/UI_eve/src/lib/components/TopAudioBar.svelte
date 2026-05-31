@@ -185,25 +185,35 @@
     }
 </script>
 
-<canvas bind:this={canvas} width={500} height={70} class="top-audio-bar"></canvas>
-
-<div class="bar-label">AUDIO</div>
+<div class="audio-bar-wrap">
+    <canvas bind:this={canvas} width={500} height={70} class="top-audio-bar"></canvas>
+    <div class="bar-label">AUDIO</div>
+</div>
 
 <style>
-    .top-audio-bar {
+    .audio-bar-wrap {
         position: absolute;
-        top: 12px;
+        top: 8px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 100;
         pointer-events: none;
+        border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.08);
+        border-radius: 4px;
+        padding: 2px;
+        transition: border-color 0.3s ease;
+    }
+
+    .top-audio-bar {
+        display: block;
         will-change: transform;
-        filter: drop-shadow(0 0 6px rgba(0, 180, 255, 0.15));
+        filter: drop-shadow(0 0 6px rgba(var(--tr), var(--tg), var(--tb), 0.15));
+        transition: filter 0.3s ease;
     }
 
     .bar-label {
         position: absolute;
-        top: 0px;
+        top: -4px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 101;
@@ -211,6 +221,7 @@
         font-family: "JetBrains Mono", monospace;
         font-size: 0.55rem;
         letter-spacing: 3px;
-        color: rgba(255, 255, 255, 0.2);
+        color: rgba(var(--tr), var(--tg), var(--tb), 0.25);
+        transition: color 0.3s ease;
     }
 </style>

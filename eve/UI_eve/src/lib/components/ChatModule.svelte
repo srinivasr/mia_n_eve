@@ -128,10 +128,10 @@
         transform: translateX(-50%);
         padding: 24px;
         pointer-events: auto;
-        transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+        transition: border-color 0.3s ease, box-shadow 0.3s ease, all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
         backdrop-filter: blur(20px);
         background: rgba(5, 10, 20, 0.45);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.15);
         box-shadow:
             0 20px 50px rgba(0, 0, 0, 0.6),
             inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -205,8 +205,8 @@
     }
 
     .eve-dot {
-        background: #22d3ee;
-        box-shadow: 0 0 8px #22d3ee;
+        background: rgba(var(--tr), var(--tg), var(--tb), 0.9);
+        box-shadow: 0 0 8px rgba(var(--tr), var(--tg), var(--tb), 0.7);
     }
 
     .system-dot {
@@ -237,13 +237,13 @@
     .user-msg .message-bubble {
         background: linear-gradient(
             135deg,
-            rgba(34, 211, 238, 0.15) 0%,
-            rgba(34, 211, 238, 0.05) 100%
+            rgba(var(--tr), var(--tg), var(--tb), 0.12) 0%,
+            rgba(var(--tr), var(--tg), var(--tb), 0.04) 100%
         );
-        border: 1px solid rgba(34, 211, 238, 0.25);
+        border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.25);
         color: #e2e8f0;
         border-bottom-right-radius: 4px;
-        box-shadow: 0 4px 15px rgba(34, 211, 238, 0.05);
+        box-shadow: 0 4px 15px rgba(var(--tr), var(--tg), var(--tb), 0.08);
     }
 
     .system-msg .message-bubble {
@@ -291,10 +291,10 @@
 
     .command-input:focus {
         outline: none;
-        border-color: rgba(34, 211, 238, 0.4);
+        border-color: rgba(var(--tr), var(--tg), var(--tb), 0.4);
         box-shadow:
-            0 0 20px rgba(34, 211, 238, 0.15),
-            inset 0 0 5px rgba(34, 211, 238, 0.05);
+            0 0 20px rgba(var(--tr), var(--tg), var(--tb), 0.15),
+            inset 0 0 5px rgba(var(--tr), var(--tg), var(--tb), 0.05);
         background: rgba(0, 0, 0, 0.55);
     }
 

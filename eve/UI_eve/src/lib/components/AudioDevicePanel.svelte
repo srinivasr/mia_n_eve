@@ -135,19 +135,16 @@
 
 <style>
     .audio-panel {
-        position: fixed;
-        bottom: 40px;
-        left: 40px;
         background: rgba(10, 15, 20, 0.6);
         backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.15);
         border-radius: 12px;
         padding: 16px;
-        width: 280px;
+        width: 252px;
         font-family: "Inter", -apple-system, sans-serif;
         color: #fff;
-        z-index: 100;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
     }
 
     .header {

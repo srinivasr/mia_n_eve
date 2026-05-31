@@ -11,6 +11,14 @@
     latencyMs,
     isConnected,
   } from "./lib/stores/eveState";
+  import { stateColor, hexToRgb } from "./lib/stores/theme";
+
+  let tr = 74, tg = 229, tb = 255;
+
+  $: {
+    const c = hexToRgb($stateColor);
+    tr = c.r; tg = c.g; tb = c.b;
+  }
 
   interface Message {
     time: string;
@@ -113,19 +121,21 @@
   }
 </script>
 
-<main data-tauri-drag-region>
-  <Telemetry />
-
-  <div class="audio-bar-container">
+  <main
+    data-tauri-drag-region
+    style="--tr: {tr}; --tg: {tg}; --tb: {tb}"
+  >
     <TopAudioBar />
-  </div>
 
-  <ThreeOrb />
+    <ThreeOrb />
 
-  <ChatModule {messages} bind:inputValue onsend={handleSendMessage} />
+    <div class="right-dashboard">
+      <Telemetry />
+      <AudioDevicePanel />
+    </div>
 
-  <AudioDevicePanel />
-</main>
+    <ChatModule {messages} bind:inputValue onsend={handleSendMessage} />
+  </main>
 
 <style>
   main {
@@ -138,12 +148,18 @@
     position: relative;
   }
 
-  .audio-bar-container {
-    position: absolute;
-    top: 30px;
-    left: 50%;
-    transform: translateX(-50%);
+  .right-dashboard {
+    position: fixed;
+    right: 24px;
+    top: 84px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     z-index: 100;
     pointer-events: none;
+  }
+
+  .right-dashboard > :global(*) {
+    pointer-events: auto;
   }
 </style>

@@ -87,7 +87,8 @@
         ctx.stroke();
 
         // Fill arc
-        const fillEnd = (ARC_START + (displayPct / 100) * ARC_SWEEP) % (Math.PI * 2);
+        const fillEnd =
+            (ARC_START + (displayPct / 100) * ARC_SWEEP) % (Math.PI * 2);
         ctx.beginPath();
         ctx.arc(cx, cy, r, ARC_START, fillEnd, false);
         ctx.strokeStyle = color;
@@ -111,18 +112,21 @@
 
         // Info text (e.g. "4.2G")
         if (info) {
-            ctx.fillStyle = isNa ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.25)";
+            ctx.fillStyle = isNa
+                ? "rgba(255,255,255,0.1)"
+                : "rgba(255,255,255,0.25)";
             ctx.font = '10px "JetBrains Mono", monospace';
             ctx.textBaseline = "top";
             ctx.fillText(info, cx, cy + 12);
         }
 
         // Label
-        ctx.fillStyle = isNa ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.35)";
+        ctx.fillStyle = isNa
+            ? "rgba(255,255,255,0.12)"
+            : "rgba(255,255,255,0.35)";
         ctx.font = '8px "JetBrains Mono", monospace';
         ctx.textBaseline = "top";
         ctx.fillText(label, cx, cy + (info ? 24 : 22));
-    }
     }
 
     function drawSparkline(
@@ -184,8 +188,11 @@
             if (d.uptime_seconds) bootTimestamp = d.uptime_seconds;
 
             if (d.gpu_name) {
-                const short = d.gpu_name.replace("NVIDIA ", "").replace("GeForce ", "");
-                gpuName = short.length > 18 ? short.substring(0, 16) + "…" : short;
+                const short = d.gpu_name
+                    .replace("NVIDIA ", "")
+                    .replace("GeForce ", "");
+                gpuName =
+                    short.length > 18 ? short.substring(0, 16) + "…" : short;
             }
 
             if (d.gpu_percent === null || d.gpu_percent === undefined) {
@@ -198,8 +205,14 @@
 
             cpuHist = [...cpuHist.slice(1), cpuTarget];
             ramHist = [...ramHist.slice(1), ramTarget];
-            gpuHist = [...gpuHist.slice(1), gpuTarget === -1 ? 0 : (gpuTarget ?? 0)];
-            vramHist = [...vramHist.slice(1), vramTarget === -1 ? 0 : (vramTarget ?? 0)];
+            gpuHist = [
+                ...gpuHist.slice(1),
+                gpuTarget === -1 ? 0 : (gpuTarget ?? 0),
+            ];
+            vramHist = [
+                ...vramHist.slice(1),
+                vramTarget === -1 ? 0 : (vramTarget ?? 0),
+            ];
         } catch {
             // server not running
         }
@@ -224,7 +237,9 @@
         updateUptime();
 
         const gpuColor = hasGpu ? gaugeColor(gpuVal) : "rgba(255,255,255,0.12)";
-        const vramColor = hasGpu ? gaugeColor(vramVal) : "rgba(255,255,255,0.12)";
+        const vramColor = hasGpu
+            ? gaugeColor(vramVal)
+            : "rgba(255,255,255,0.12)";
 
         ramUsedDisplay = ramUsedGb ? `${ramUsedGb.toFixed(1)}G` : "";
         vramUsedDisplay = vramUsedGb ? `${vramUsedGb.toFixed(1)}G` : "";
@@ -260,19 +275,23 @@
     <div class="gauges">
         <div class="cell">
             <canvas bind:this={cpuCanvas} width={100} height={100}></canvas>
-            <canvas bind:this={cpuSpark} width={110} height={26} class="spark"></canvas>
+            <canvas bind:this={cpuSpark} width={110} height={26} class="spark"
+            ></canvas>
         </div>
         <div class="cell">
             <canvas bind:this={ramCanvas} width={100} height={100}></canvas>
-            <canvas bind:this={ramSpark} width={110} height={26} class="spark"></canvas>
+            <canvas bind:this={ramSpark} width={110} height={26} class="spark"
+            ></canvas>
         </div>
         <div class="cell">
             <canvas bind:this={gpuCanvas} width={100} height={100}></canvas>
-            <canvas bind:this={gpuSpark} width={110} height={26} class="spark"></canvas>
+            <canvas bind:this={gpuSpark} width={110} height={26} class="spark"
+            ></canvas>
         </div>
         <div class="cell">
             <canvas bind:this={vramCanvas} width={100} height={100}></canvas>
-            <canvas bind:this={vramSpark} width={110} height={26} class="spark"></canvas>
+            <canvas bind:this={vramSpark} width={110} height={26} class="spark"
+            ></canvas>
         </div>
     </div>
 
@@ -285,13 +304,22 @@
         </div>
         <div class="metric-row">
             <span class="label">Latency</span>
-            <span class="value" class:good={$latencyMs < 400} class:warn={$latencyMs >= 400 && $latencyMs < 900} class:bad={$latencyMs >= 900}>
+            <span
+                class="value"
+                class:good={$latencyMs < 400}
+                class:warn={$latencyMs >= 400 && $latencyMs < 900}
+                class:bad={$latencyMs >= 900}
+            >
                 {$latencyMs} ms
             </span>
         </div>
         <div class="metric-row">
             <span class="label">Status</span>
-            <span class="value" class:connected={$isConnected} class:disconnected={!$isConnected}>
+            <span
+                class="value"
+                class:connected={$isConnected}
+                class:disconnected={!$isConnected}
+            >
                 {$isConnected ? "ONLINE" : "OFFLINE"}
             </span>
         </div>
@@ -304,21 +332,21 @@
 
 <style>
     .telemetry {
-        position: fixed;
-        top: 80px;
-        right: 16px;
         background: rgba(5, 10, 21, 0.65);
         backdrop-filter: blur(14px);
-        border: 1px solid rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.25);
         border-radius: 14px;
         padding: 16px;
         width: 252px;
-        z-index: 100;
         box-shadow:
             0 10px 40px rgba(0, 0, 0, 0.5),
             inset 0 1px 0 rgba(255, 255, 255, 0.04);
-        font-family: "Inter", -apple-system, sans-serif;
+        font-family:
+            "Inter",
+            -apple-system,
+            sans-serif;
         color: #fff;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
     }
 
     .section-header {
@@ -380,9 +408,19 @@
         color: #22d3ee;
     }
 
-    .connected { color: #22c55e; }
-    .disconnected { color: #ef4444; }
-    .good { color: #22c55e; }
-    .warn { color: #eab308; }
-    .bad { color: #ef4444; }
+    .connected {
+        color: #22c55e;
+    }
+    .disconnected {
+        color: #ef4444;
+    }
+    .good {
+        color: #22c55e;
+    }
+    .warn {
+        color: #eab308;
+    }
+    .bad {
+        color: #ef4444;
+    }
 </style>
