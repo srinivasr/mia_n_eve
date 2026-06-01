@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
     import { currentState } from "../stores/eveState";
-    import { rmsLevel, captureRunning } from "../stores/audioStore";
+    import { captureRunning, audioBars } from "../stores/audioStore";
 
     let canvas: HTMLCanvasElement;
     let animationId: number;
@@ -121,23 +121,7 @@
         let data: number[];
 
         if ($captureRunning) {
-            const val = $rmsLevel;
-            if (val > 5) {
-                data = Array.from({ length: N }, (_, i) =>
-                    Math.max(
-                        0,
-                        Math.min(255, val + Math.sin(t + i * 0.3) * 30),
-                    ),
-                );
-            } else {
-                data = Array.from({ length: N }, (_, i) =>
-                    Math.max(
-                        0,
-                        (Math.sin(t * 0.6 + i * 0.2) * 0.5 + 0.5) * 40 +
-                            Math.random() * 25,
-                    ),
-                );
-            }
+            data = $audioBars;
         } else if ($currentState === "Speaking") {
             data = Array.from(
                 { length: N },

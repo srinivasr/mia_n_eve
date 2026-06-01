@@ -5,6 +5,8 @@ export const rmsLevel = writable<number>(0);
 export const vadActive = writable<boolean>(false);
 export const captureRunning = writable<boolean>(false);
 
+export const audioBars = writable<number[]>(new Array(28).fill(0));
+
 export interface AudioDeviceInfo {
     id: string;
     name: string;
@@ -32,5 +34,9 @@ if (window.__TAURI_INTERNALS__) {
 
     listen<{ text: string }>('audio://stt_result', (event) => {
         sttResult.set(event.payload.text);
+    });
+
+    listen<{ bars: number[] }>('audio://bars', (event) => {
+        audioBars.set(event.payload.bars.map(v => Math.min(255, Math.round(v * 255))));
     });
 }

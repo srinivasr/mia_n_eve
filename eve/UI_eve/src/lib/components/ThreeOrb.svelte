@@ -267,7 +267,10 @@
                 side: THREE.DoubleSide,
             });
 
-        equatorialRing = new THREE.Mesh(ringGeo(65, 0.08), ringMat(0x4ae5ff, 0.4));
+        equatorialRing = new THREE.Mesh(
+            ringGeo(65, 0.08),
+            ringMat(0x4ae5ff, 0.4),
+        );
         equatorialRing.position.y = 5;
         scene.add(equatorialRing);
 
@@ -316,7 +319,7 @@
         container.appendChild(renderer.domElement);
 
         // ── Particle geometry ─────────────────────────────────────────
-        const particleCount = 40000;
+        const particleCount = 300000;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const sizes = new Float32Array(particleCount);

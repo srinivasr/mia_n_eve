@@ -12,9 +12,31 @@ use super::rms::compute_rms;
 use super::vad::{VadDetector, VadState};
 use super::stt_client::SttRequest;
 
+const BAR_COUNT: usize = 28;
+
+fn compute_bars(samples: &[f32], num: usize) -> Vec<f32> {
+    let chunk = samples.len() / num;
+    if chunk == 0 {
+        return vec![0.0; num];
+    }
+    let mut bars = Vec::with_capacity(num);
+    for i in 0..num {
+        let start = i * chunk;
+        let end = if i == num - 1 { samples.len() } else { start + chunk };
+        let rms = samples[start..end].iter().map(|s| s * s).sum::<f32>() / (end - start) as f32;
+        bars.push(rms.sqrt());
+    }
+    bars
+}
+
 #[derive(Clone, serde::Serialize)]
 pub struct RmsPayload {
     pub rms: f32,
+}
+
+#[derive(Clone, serde::Serialize)]
+pub struct BarsPayload {
+    pub bars: Vec<f32>,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -95,6 +117,8 @@ impl AudioCapture {
 
                         let _ = app.emit("audio://rms", RmsPayload { rms });
 
+                        let _ = app.emit("audio://bars", BarsPayload { bars: compute_bars(samples, BAR_COUNT) });
+
                         let new_state = {
                             let mut detector = vad.lock().unwrap();
                             detector.process(samples)
@@ -155,6 +179,8 @@ impl AudioCapture {
                         let rms = compute_rms(samples);
 
                         let _ = app.emit("audio://rms", RmsPayload { rms });
+
+                        let _ = app.emit("audio://bars", BarsPayload { bars: compute_bars(samples, BAR_COUNT) });
 
                         let new_state = {
                             let mut detector = vad.lock().unwrap();
