@@ -319,7 +319,7 @@
         container.appendChild(renderer.domElement);
 
         // ── Particle geometry ─────────────────────────────────────────
-        const particleCount = 300000;
+        const particleCount = 100000;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const sizes = new Float32Array(particleCount);
