@@ -2,11 +2,11 @@
     import { onMount, onDestroy } from "svelte";
     import { isConnected, latencyMs, currentState } from "../stores/eveState";
 
-    // ── Gauge canvases ────────────────────────────────────────────────
-    let cpuCanvas: HTMLCanvasElement;
-    let ramCanvas: HTMLCanvasElement;
-    let gpuCanvas: HTMLCanvasElement;
-    let vramCanvas: HTMLCanvasElement;
+    // ── Bar canvases ─────────────────────────────────────────────────
+    let cpuBar: HTMLCanvasElement;
+    let ramBar: HTMLCanvasElement;
+    let gpuBar: HTMLCanvasElement;
+    let vramBar: HTMLCanvasElement;
     let cpuSpark: HTMLCanvasElement;
     let ramSpark: HTMLCanvasElement;
     let gpuSpark: HTMLCanvasElement;
@@ -26,8 +26,8 @@
     let ramTotalGb = 0;
     let vramUsedGb = 0;
     let vramTotalGb = 0;
-    let ramUsedDisplay = "";
-    let vramUsedDisplay = "";
+    let ramInfo = "";
+    let vramInfo = "";
 
     // ── History for sparklines ────────────────────────────────────────
     const MAX_HISTORY = 40;
@@ -40,27 +40,33 @@
     let bootTimestamp = 0;
     let uptimeStr = "—";
 
-    // ── Gauge constants ───────────────────────────────────────────────
-    const ARC_START = Math.PI * 0.75;
-    const ARC_END = Math.PI * 0.25;
-    const ARC_SWEEP = Math.PI * 1.5;
-
     let animId: number;
     let pollId: number;
     let hasGpu = true;
 
-    function gaugeColor(pct: number): string {
-        const h = pct < 50
-            ? 40 - (pct / 50) * 10
-            : 30 - ((pct - 50) / 50) * 30;
-        const s = pct < 50 ? 85 + (pct / 50) * 10 : 95;
-        const l = pct < 50 ? 45 + (pct / 50) * 15 : 60 - ((pct - 50) / 50) * 20;
-        return `hsl(${h}, ${s}%, ${l}%)`;
-    }
+    // ── btop metric colors ───────────────────────────────────────────
+    const COLORS = {
+        cpu: "#e8643b",
+        ram: "#d4943a",
+        gpu: "#a85d66",
+        vram: "#7a8a55",
+    };
 
-    function drawGauge(
+    // ── Pixel-block bar constants ─────────────────────────────────────
+    const PIXEL_COLS = 20;
+    const PIXEL_GAP = 1;
+    const BAR_X = 34;
+    const BAR_W = 186;
+    const BAR_Y = 8;
+    const BAR_H = 12;
+    const cellW = Math.floor(
+        (BAR_W - PIXEL_GAP * (PIXEL_COLS - 1)) / PIXEL_COLS,
+    );
+
+    function drawBar(
         canvas: HTMLCanvasElement,
         pct: number,
+        color: string,
         label: string,
         info = "",
     ) {
@@ -70,58 +76,39 @@
         const h = canvas.height;
         ctx.clearRect(0, 0, w, h);
 
-        const cx = w / 2;
-        const cy = h / 2 + 2;
-        const r = 38;
-        const lw = 7;
-
         const isNa = pct === -1;
         const displayPct = isNa ? 0 : pct;
-        const color = isNa ? "rgba(255,255,255,0.12)" : gaugeColor(displayPct);
-        const txt = isNa ? "N/A" : `${Math.round(displayPct)}%`;
+        const pctTxt = isNa ? "N/A" : `${Math.round(displayPct)}%`;
 
-        // Background arc
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, ARC_START, ARC_END, false);
-        ctx.strokeStyle = "rgba(255,255,255,0.06)";
-        ctx.lineWidth = lw;
-        ctx.lineCap = "round";
-        ctx.stroke();
-
-        // Fill arc
-        const fillEnd =
-            (ARC_START + (displayPct / 100) * ARC_SWEEP) % (Math.PI * 2);
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, ARC_START, fillEnd, false);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = lw;
-        ctx.lineCap = "round";
-        ctx.stroke();
-
-        // Percentage text
-        ctx.fillStyle = isNa ? "rgba(255,255,255,0.25)" : "#f0f4ff";
-        ctx.font = 'bold 20px "JetBrains Mono", monospace';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(txt, cx, cy - 2);
-
-        // Info text (e.g. "4.2G")
-        if (info) {
-            ctx.fillStyle = isNa
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(255,255,255,0.25)";
-            ctx.font = '9px "JetBrains Mono", monospace';
-            ctx.textBaseline = "top";
-            ctx.fillText(info, cx, cy + 14);
+        // Pixel-block bar
+        const filled = Math.round((displayPct / 100) * PIXEL_COLS);
+        for (let i = 0; i < PIXEL_COLS; i++) {
+            const x = BAR_X + i * (cellW + PIXEL_GAP);
+            ctx.fillStyle = i < filled ? color : "rgba(255,255,255,0.12)";
+            ctx.fillRect(x, BAR_Y, cellW, BAR_H);
         }
 
         // Label
-        ctx.fillStyle = isNa
-            ? "rgba(255,255,255,0.12)"
-            : "rgba(255,255,255,0.35)";
-        ctx.font = '7px "JetBrains Mono", monospace';
-        ctx.textBaseline = "top";
-        ctx.fillText(label, cx, cy + (info ? 24 : 20));
+        ctx.fillStyle = color;
+        ctx.font = 'bold 11px "JetBrains Mono", monospace';
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, 4, 14);
+
+        // Percentage
+        ctx.fillStyle = isNa ? "rgba(255,255,255,0.5)" : "#f0f4ff";
+        ctx.font = 'bold 12px "JetBrains Mono", monospace';
+        ctx.textAlign = "right";
+        ctx.fillText(pctTxt, w - 4, 14);
+
+        // Info text
+        if (info) {
+            ctx.fillStyle = "rgba(255,255,255,0.55)";
+            ctx.font = '9px "JetBrains Mono", monospace';
+            ctx.textAlign = "left";
+            ctx.textBaseline = "middle";
+            ctx.fillText(info, BAR_X, 29);
+        }
     }
 
     function drawSparkline(
@@ -140,27 +127,21 @@
 
         const len = values.length;
         const max = Math.max(100, ...values);
+        const colW = Math.floor(w / len);
 
-        ctx.beginPath();
-        for (let i = 0; i < len; i++) {
-            const x = (i / (len - 1)) * w;
-            const y = h - (values[i] / max) * h;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+        // Background grid dots
+        for (let i = 0; i < len; i += 4) {
+            ctx.fillStyle = "rgba(255,255,255,0.05)";
+            ctx.fillRect(i * colW, 0, colW, h - 1);
         }
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
 
-        // Subtle fill beneath the line
-        ctx.lineTo(w, h);
-        ctx.lineTo(0, h);
-        ctx.closePath();
-        const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, color + "30");
-        grad.addColorStop(1, color + "02");
-        ctx.fillStyle = grad;
-        ctx.fill();
+        // Pixel columns
+        for (let i = 0; i < len; i++) {
+            const colH = Math.round((values[i] / max) * h);
+            if (colH < 1) continue;
+            ctx.fillStyle = color;
+            ctx.fillRect(i * colW, h - colH, colW, colH);
+        }
     }
 
     // ── Polling ───────────────────────────────────────────────────────
@@ -187,7 +168,9 @@
                     .replace("NVIDIA ", "")
                     .replace("GeForce ", "");
                 gpuName =
-                    short.length > 18 ? short.substring(0, 16) + "…" : short;
+                    short.length > 18
+                        ? short.substring(0, 16) + "\u2026"
+                        : short;
             }
 
             if (d.gpu_percent === null || d.gpu_percent === undefined) {
@@ -231,23 +214,30 @@
 
         updateUptime();
 
-        const gpuColor = hasGpu ? gaugeColor(gpuVal) : "rgba(255,255,255,0.12)";
-        const vramColor = hasGpu
-            ? gaugeColor(vramVal)
-            : "rgba(255,255,255,0.12)";
+        ramInfo =
+            ramTotalGb > 0
+                ? `${ramUsedGb.toFixed(1)}G / ${ramTotalGb.toFixed(1)}G`
+                : "";
+        vramInfo =
+            vramTotalGb > 0
+                ? `${vramUsedGb.toFixed(1)}G / ${vramTotalGb.toFixed(1)}G`
+                : "";
 
-        ramUsedDisplay = ramUsedGb ? `${ramUsedGb.toFixed(1)}G` : "";
-        vramUsedDisplay = vramUsedGb ? `${vramUsedGb.toFixed(1)}G` : "";
+        drawBar(cpuBar, cpuVal, COLORS.cpu, "CPU");
+        drawBar(ramBar, ramVal, COLORS.ram, "RAM", ramInfo);
+        drawBar(
+            gpuBar,
+            hasGpu ? gpuVal : -1,
+            COLORS.gpu,
+            hasGpu ? "GPU" : gpuName,
+            hasGpu ? gpuName : "",
+        );
+        drawBar(vramBar, hasGpu ? vramVal : -1, COLORS.vram, "VRAM", vramInfo);
 
-        drawGauge(cpuCanvas, cpuVal, "CPU");
-        drawGauge(ramCanvas, ramVal, "RAM", ramUsedDisplay);
-        drawGauge(gpuCanvas, hasGpu ? gpuVal : -1, gpuName);
-        drawGauge(vramCanvas, hasGpu ? vramVal : -1, "VRAM", vramUsedDisplay);
-
-        drawSparkline(cpuSpark, cpuHist, gaugeColor(cpuVal));
-        drawSparkline(ramSpark, ramHist, gaugeColor(ramVal));
-        drawSparkline(gpuSpark, gpuHist, gpuColor);
-        drawSparkline(vramSpark, vramHist, vramColor);
+        drawSparkline(cpuSpark, cpuHist, COLORS.cpu);
+        drawSparkline(ramSpark, ramHist, COLORS.ram);
+        drawSparkline(gpuSpark, gpuHist, COLORS.gpu);
+        drawSparkline(vramSpark, vramHist, COLORS.vram);
 
         animId = requestAnimationFrame(animate);
     }
@@ -267,30 +257,30 @@
 <div class="telemetry">
     <div class="section-header">SYSTEM RESOURCES</div>
 
-    <div class="gauges">
-        <div class="cell">
-            <canvas bind:this={cpuCanvas} width={100} height={100}></canvas>
-            <canvas bind:this={cpuSpark} width={110} height={26} class="spark"
+    <div class="metrics">
+        <div class="metric">
+            <canvas bind:this={cpuBar} width={258} height={38}></canvas>
+            <canvas bind:this={cpuSpark} width={258} height={24} class="spark"
             ></canvas>
         </div>
-        <div class="cell">
-            <canvas bind:this={ramCanvas} width={100} height={100}></canvas>
-            <canvas bind:this={ramSpark} width={110} height={26} class="spark"
+        <div class="metric">
+            <canvas bind:this={ramBar} width={258} height={38}></canvas>
+            <canvas bind:this={ramSpark} width={258} height={24} class="spark"
             ></canvas>
         </div>
-        <div class="cell">
-            <canvas bind:this={gpuCanvas} width={100} height={100}></canvas>
-            <canvas bind:this={gpuSpark} width={110} height={26} class="spark"
+        <div class="metric">
+            <canvas bind:this={gpuBar} width={258} height={38}></canvas>
+            <canvas bind:this={gpuSpark} width={258} height={24} class="spark"
             ></canvas>
         </div>
-        <div class="cell">
-            <canvas bind:this={vramCanvas} width={100} height={100}></canvas>
-            <canvas bind:this={vramSpark} width={110} height={26} class="spark"
+        <div class="metric">
+            <canvas bind:this={vramBar} width={258} height={38}></canvas>
+            <canvas bind:this={vramSpark} width={258} height={24} class="spark"
             ></canvas>
         </div>
     </div>
 
-    <div class="section-header" style="margin-top: 8px;">RUNTIME</div>
+    <div class="section-header" style="margin-top: 6px;">RUNTIME</div>
 
     <div class="runtime">
         <div class="metric-row">
@@ -331,7 +321,7 @@
         backdrop-filter: blur(14px);
         border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.25);
         border-radius: 14px;
-        padding: 16px;
+        padding: 14px 16px;
         width: 290px;
         box-shadow:
             0 10px 40px rgba(0, 0, 0, 0.5),
@@ -341,41 +331,44 @@
             -apple-system,
             sans-serif;
         color: #fff;
-        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        transition:
+            border-color 0.3s ease,
+            box-shadow 0.3s ease;
     }
 
     .section-header {
-        font-size: 0.65rem;
+        font-size: 0.7rem;
         letter-spacing: 2.5px;
-        color: rgba(255, 255, 255, 0.25);
-        font-weight: 600;
-        margin-bottom: 10px;
-        padding-bottom: 6px;
+        color: rgba(255, 255, 255, 0.55);
+        font-weight: 700;
+        margin-bottom: 8px;
+        padding-bottom: 5px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
 
-    .gauges {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 4px;
-        justify-items: center;
-    }
-
-    .cell {
+    .metrics {
         display: flex;
         flex-direction: column;
-        align-items: center;
+        gap: 2px;
+    }
+
+    .metric {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .metric canvas {
+        display: block;
     }
 
     .spark {
-        margin-top: -8px;
-        filter: drop-shadow(0 0 4px rgba(255, 180, 40, 0.15));
+        margin-top: -2px;
     }
 
     .runtime {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 5px;
     }
 
     .metric-row {
@@ -386,8 +379,8 @@
     }
 
     .label {
-        color: rgba(255, 255, 255, 0.35);
-        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.75rem;
         letter-spacing: 1px;
         text-transform: uppercase;
     }
@@ -395,7 +388,7 @@
     .value {
         font-family: "JetBrains Mono", monospace;
         font-weight: 500;
-        font-size: 0.75rem;
+        font-size: 0.8rem;
         color: #e2e8f0;
     }
 
