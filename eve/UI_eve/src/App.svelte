@@ -148,8 +148,8 @@
 
   .left-dashboard {
     position: fixed;
-    left: 24px;
-    top: 84px;
+    left: clamp(8px, 1.5vw, 24px);
+    top: clamp(40px, 7vh, 84px);
     z-index: 100;
     pointer-events: none;
   }

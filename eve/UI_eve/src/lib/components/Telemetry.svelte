@@ -322,7 +322,7 @@
         border: 1px solid rgba(var(--tr), var(--tg), var(--tb), 0.25);
         border-radius: 14px;
         padding: 14px 16px;
-        width: 290px;
+        width: clamp(200px, 20vw, 320px);
         box-shadow:
             0 10px 40px rgba(0, 0, 0, 0.5),
             inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -357,8 +357,15 @@
         flex-direction: column;
     }
 
-    .metric canvas {
+    .metric canvas:first-child {
         display: block;
+        width: 100%;
+        height: auto;
+    }
+    .metric canvas.spark {
+        display: block;
+        width: 100%;
+        height: auto;
     }
 
     .spark {

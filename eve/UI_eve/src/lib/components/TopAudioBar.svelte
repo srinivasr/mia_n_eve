@@ -165,5 +165,7 @@
         background: rgba(0, 0, 0, 0.3);
         border-radius: 3px;
         filter: drop-shadow(0 0 6px rgba(var(--tr), var(--tg), var(--tb), 0.2));
+        max-width: 400px;
+        width: min(400px, 60vw);
     }
 </style>
