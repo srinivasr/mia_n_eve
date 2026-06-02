@@ -1,0 +1,34 @@
+# Project mia_n_mia Global Configuration
+
+[runtime]
+# 900ms end-to-end target latency
+target_latency_ms = 900
+grpc_port = 50051
+ws_port = 8080
+enable_telemetry = true
+
+[slots]
+# Default provider selections for the slot architecture
+default_stt = "whisper_local"
+default_llm = "ollama_local"
+default_tts = "pyttsx3_local"
+default_vision = "local_vision"
+
+[providers.stt.whisper_local]
+model = "tiny"
+device = "cpu"
+compute_type = "int8"
+# Note: For production with GPU, change to: model="base", device="cuda", compute_type="float16"
+
+[providers.llm.ollama_local]
+base_url = "http://localhost:11434"
+model = "qwen2.5:7b"
+
+[providers.tts.pyttsx3_local]
+voice = "default"
+rate = 175
+
+[observability]
+log_level = "INFO"
+trace_sampling_rate = 1.0
+enable_metrics = true
