@@ -1,4 +1,3 @@
-import pyttsx3
 import threading
 import queue
 import re
