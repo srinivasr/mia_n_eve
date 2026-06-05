@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">MIA_N_EVE</h1>
+  <h1 align="center">MIA_N_MIA</h1>
   <p align="center">
     Realtime Multimodal AI Runtime Platform
   </p>
@@ -19,7 +19,7 @@
 
 ## Overview
 
-MIA_N_EVE is a realtime multimodal AI runtime system designed for:
+MIA_N_MIA is a realtime multimodal AI runtime system designed for:
 
 * low-latency voice interaction
 * native desktop integration
@@ -29,7 +29,7 @@ MIA_N_EVE is a realtime multimodal AI runtime system designed for:
 * multimodal intelligence
 * future autonomous agent systems
 
-Unlike traditional assistant applications, MIA_N_EVE is architected as a modular AI runtime platform.
+Unlike traditional assistant applications, MIA_N_MIA is architected as a modular AI runtime platform.
 
 ---
 
@@ -117,7 +117,7 @@ Benefits:
 
 # Slot-Hook Architecture
 
-MIA_N_EVE uses a dedicated slot-hook runtime architecture.
+MIA_N_MIA uses a dedicated slot-hook runtime architecture.
 
 ---
 
@@ -173,7 +173,7 @@ without modifying orchestration logic.
 
 # Multimodal Runtime
 
-MIA_N_EVE is multimodal-native.
+MIA_N_MIA is multimodal-native.
 
 Supported architecture:
 
@@ -229,9 +229,9 @@ Target latency:
 | Systems Layer    | Rust                        |
 | AI Orchestration | Python                      |
 | Communication    | WebSockets + gRPC           |
-| STT              | Whisper / Deepgram          |
-| LLM              | OpenAI / Gemini / Ollama    |
-| TTS              | Kokoro / Piper / ElevenLabs |
+| STT              | faster-whisper (Local)      |
+| LLM              | Ollama (Local)              |
+| TTS              | pyttsx3 (Local)             |
 | Streaming        | AsyncIO + WebSockets        |
 | Observability    | Structured Tracing          |
 | Future Memory    | Vector Retrieval            |
@@ -257,10 +257,28 @@ Target latency:
               gRPC
                │
 ┌──────────────▼───────────────┐
-│      EVE BRAIN (Python)      │
+│      MIA BRAIN (Python)      │
 │ Orchestrator · LLM · STT     │
 │ TTS · Tools · Memory         │
 └──────────────────────────────┘
+```
+
+---
+
+# Repository Structure
+
+For optimal developer experience, the project is structured into two clean top-level directories:
+
+* **`ui/`**: Contains all Frontend (Svelte/Vite/Node) and Desktop (Tauri/Rust) code.
+* **`brain/`**: Contains all Python AI Orchestration, Tools, and Memory logic.
+
+```text
+mia_n_eve/
+├── brain/         # Python logic
+├── ui/            # Svelte + Rust Tauri app
+├── .env           
+├── run.sh
+└── readme.md
 ```
 
 ---
