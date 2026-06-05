@@ -28,6 +28,7 @@ dependencies = [
     "python-pptx",
     "python-dotenv",
     "setuptools<70",
+    "piper-tts"
 ]
 
 [build-system]

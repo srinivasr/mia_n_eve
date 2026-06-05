@@ -58,9 +58,19 @@ class PiperTTS:
                     try:
                         # Use local Piper TTS with high-quality Lessac voice
                         import subprocess
+                        import os
+                        
+                        brain_dir = os.path.dirname(os.path.abspath(__file__))
+                        piper_bin = os.path.join(brain_dir, "venv", "bin", "piper")
+                        model_path = os.path.join(brain_dir, "piper_voices", "en_US-lessac-medium.onnx")
+                        
+                        # Fallback if piper isn't in venv (e.g. system wide)
+                        if not os.path.exists(piper_bin):
+                            piper_bin = "piper"
+                            
                         subprocess.run([
-                            "/home/lev/repos/mialocal/brain/venv/bin/piper",
-                            "--model", "/home/lev/repos/mialocal/brain/piper_voices/en_US-lessac-medium.onnx",
+                            piper_bin,
+                            "--model", model_path,
                             "--output_file", tmp_path
                         ], input=text.encode('utf-8'), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                         

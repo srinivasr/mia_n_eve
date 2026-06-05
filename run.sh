@@ -31,6 +31,17 @@ else
     echo "Python venv found. Skipping dependency installation."
 fi
 
+# 1.5 Setup TTS Models
+echo "Checking TTS Models..."
+mkdir -p brain/piper_voices
+if [ ! -f "brain/piper_voices/en_US-lessac-medium.onnx" ]; then
+    echo "Downloading Piper TTS model (this may take a minute)..."
+    curl -L -o "brain/piper_voices/en_US-lessac-medium.onnx" "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx"
+    curl -L -o "brain/piper_voices/en_US-lessac-medium.onnx.json" "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json"
+else
+    echo "TTS models found."
+fi
+
 # 2. Setup Node Environment
 echo "Checking Node environment..."
 if [ ! -d "ui/node_modules" ]; then
