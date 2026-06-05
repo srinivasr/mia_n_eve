@@ -1,0 +1,376 @@
+"""
+ui_bridge.py — WebSocket bridge for the frontend UI.
+
+Exposes the same interface (set_state, write_log, muted, on_text_command,
+current_file, wait_for_api_key) but communicates with the Svelte/Tauri
+frontend over a WebSocket server on ws://127.0.0.1:8765.
+
+Protocol (JSON over WebSocket):
+  Server → Client:  {"type": "state",   "state": "LISTENING|SPEAKING|THINKING"}
+  Server → Client:  {"type": "log",     "text": "..."}
+  Client → Server:  {"type": "text_command", "text": "..."}
+  Client → Server:  {"type": "mute",    "muted": true|false}
+  Client → Server:  {"type": "file",    "path": "..."}
+
+  Setup wizard protocol:
+  Client → Server:  {"type": "get_config"}
+  Server → Client:  {"type": "config", "configured": bool, "key_valid": bool|null,
+                     "checks": {...}, "check_errors": {...}}
+  Client → Server:  {"type": "set_api_key", "key": "..."}
+  Server → Client:  {"type": "config_update", "key_valid": bool}
+  Client → Server:  {"type": "run_checks"}
+  Server → Client:  {"type": "config_update", "checks": {...}, "errors": {...}}
+  Client → Server:  {"type": "config_done"}
+  Server → Client:  {"type": "config_update", "config_done": true}
+"""
+
+import asyncio
+import json
+import threading
+from typing import Callable, Optional, Set
+
+from utils.logger import setup_logger
+logger = setup_logger(__name__)
+
+try:
+    import websockets
+    from websockets.server import WebSocketServerProtocol
+except ImportError:
+    raise ImportError("websockets is required: pip install websockets>=12.0")
+
+WS_HOST = "127.0.0.1"
+WS_PORT = 8765
+
+class UIBridge:
+    """
+    Drop-in replacement for MiaUI. Implements the same interface consumed by
+    MiaLive in main.py but routes all state/log events to connected WebSocket
+    clients instead of a Tkinter window.
+    """
+
+    def __init__(self):
+        self._clients: Set[WebSocketServerProtocol] = set()
+        self._clients_lock = threading.Lock()
+
+        self._muted: bool = False
+        self._current_file: Optional[str] = None
+        self._state: str = "IDLE"
+
+        self.on_text_command: Optional[Callable[[str], None]] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._api_key_event = threading.Event()
+
+        # Setup wizard state
+        self._config_event = asyncio.Event()
+        self._configured: bool = False
+        self._check_results: dict = {
+            "mic": None, "speakers": None,
+            "internet": None, "ollama": None,
+        }
+        self._checks_running: bool = False
+        self._check_errors: dict = {}
+
+    @property
+    def muted(self) -> bool:
+        return self._muted
+
+    @property
+    def current_file(self) -> Optional[str]:
+        return self._current_file
+
+    def set_state(self, state: str) -> None:
+        """Broadcast state change to all connected clients."""
+        self._state = state
+        self._broadcast({"type": "state", "state": state})
+
+    def write_log(self, text: str) -> None:
+        """Broadcast a log line to all connected clients."""
+        logger.info(text)
+        self._broadcast({"type": "log", "text": text})
+
+    def wait_for_api_key(self) -> None:
+        """Legacy sync check — async config flow replaces this."""
+        pass
+
+    async def wait_for_config(self) -> None:
+        """Block until the frontend completes the setup wizard (always runs checks)."""
+        from memory.config_manager import is_configured
+        if is_configured():
+            self._configured = True
+            logger.info("Config already present, skipping key step but running checks.")
+        else:
+            logger.info("Config missing — waiting for setup wizard...")
+        self.send_config_status()
+        await self._config_event.wait()
+        logger.info("Setup wizard completed.")
+
+    def send_config_status(self) -> None:
+        """Broadcast current configuration status to frontend."""
+        from memory.config_manager import is_configured
+        configured = is_configured()
+        self._broadcast({
+            "type": "config",
+            "configured": configured,
+            "key_valid": configured,
+            "checks": self._check_results,
+            "check_errors": self._check_errors,
+        })
+
+    def send_config_update(self, **kwargs) -> None:
+        """Broadcast a config_update message with arbitrary fields."""
+        self._broadcast({"type": "config_update", **kwargs})
+
+    async def _handle_get_config(self) -> None:
+        """Respond with current config status."""
+        self.send_config_status()
+
+    async def _handle_set_api_key(self, key: str) -> None:
+        """Deprecated."""
+        pass
+
+    async def _run_checks(self) -> None:
+        """Run hardware and connectivity checks sequentially, reporting each."""
+        if self._checks_running:
+            logger.info("Checks already in progress, ignoring duplicate request.")
+            return
+
+        self._checks_running = True
+        results = dict(self._check_results)
+        errors: dict[str, str] = {}
+        self._check_errors.clear()
+
+        try:
+            # ── Mic check: record 3s audio, detect speech via WebRTC VAD ──
+            self.send_config_update(checks={"mic": "listening"})
+            logger.info("Mic check: listening for speech...")
+
+            def _record_and_detect_vad() -> tuple[bool, str]:
+                import sounddevice as sd
+                import numpy as np
+
+                duration = 3
+                sample_rate = 16000
+
+                recording = sd.rec(
+                    int(duration * sample_rate),
+                    samplerate=sample_rate,
+                    channels=1,
+                    dtype="int16",
+                )
+                sd.wait()
+                audio = recording.flatten()
+
+                # Simple amplitude check instead of webrtcvad
+                max_amp = np.max(np.abs(audio))
+                logger.info(f"Mic max amplitude: {max_amp}")
+                
+                if max_amp > 300:
+                    return True, ""
+                return False, "No speech detected — speak into your microphone and try again"
+
+            try:
+                mic_ok, mic_err = await asyncio.to_thread(_record_and_detect_vad)
+                results["mic"] = mic_ok
+                if mic_err:
+                    errors["mic"] = mic_err
+                logger.info(f"Mic check: {'OK' if mic_ok else 'FAIL'}")
+            except Exception as e:
+                results["mic"] = False
+                estr = str(e).lower()
+                if "portaudio" in estr or "device" in estr:
+                    errors["mic"] = "No microphone found — check your audio input device"
+                elif "access" in estr or "denied" in estr or "permission" in estr:
+                    errors["mic"] = "Microphone access denied — check system permissions"
+                else:
+                    errors["mic"] = f"Microphone error: {str(e)[:80]}"
+                logger.warning(f"Mic check: FAIL — {e}")
+            self._check_results.update(results)
+            self._check_errors.update(errors)
+            self.send_config_update(
+                checks={"mic": results["mic"]},
+                errors={"mic": errors.get("mic", "")},
+            )
+
+            # ── Speakers check ──
+            try:
+                import sounddevice as sd
+                sd.check_output_settings(samplerate=24000, channels=1)
+                results["speakers"] = True
+                logger.info("Speakers check: OK")
+            except Exception as e:
+                results["speakers"] = False
+                errors["speakers"] = "No speakers/headphones found — check your audio output device"
+                logger.warning(f"Speakers check: FAIL — {e}")
+            self._check_results.update(results)
+            self._check_errors.update(errors)
+            self.send_config_update(
+                checks={"speakers": results["speakers"]},
+                errors={"speakers": errors.get("speakers", "")},
+            )
+
+            # ── Internet check: socket DNS + TCP ──
+            def _check_internet() -> tuple[bool, str]:
+                import socket
+                try:
+                    socket.getaddrinfo("google.com", 80)
+                except socket.gaierror:
+                    return False, "Unable to resolve hostnames — check your DNS/network settings"
+                try:
+                    sock = socket.create_connection(("google.com", 80), timeout=5)
+                    sock.close()
+                    return True, ""
+                except socket.timeout:
+                    return False, "Connection timed out — check your internet connection"
+                except OSError as e:
+                    return False, f"Network error: {str(e)[:80]}"
+
+            try:
+                net_ok, net_err = await asyncio.to_thread(_check_internet)
+                results["internet"] = net_ok
+                if net_err:
+                    errors["internet"] = net_err
+                logger.info(f"Internet check: {'OK' if net_ok else 'FAIL'}")
+            except Exception as e:
+                results["internet"] = False
+                errors["internet"] = f"Internet check error: {str(e)[:80]}"
+                logger.warning(f"Internet check: FAIL — {e}")
+            self._check_results.update(results)
+            self._check_errors.update(errors)
+            self.send_config_update(
+                checks={"internet": results["internet"]},
+                errors={"internet": errors.get("internet", "")},
+            )
+
+            # ── Ollama API check ──
+            try:
+                import httpx
+                from memory.config_manager import get_ollama_url, get_ollama_model
+                url = get_ollama_url()
+                model = get_ollama_model()
+                
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(f"{url}/api/tags", timeout=5.0)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    models = [m.get("name") for m in data.get("models", [])]
+                    
+                    if any(m.startswith(model) for m in models):
+                        results["ollama"] = True
+                        logger.info(f"Ollama check: OK ({model} found)")
+                    else:
+                        results["ollama"] = False
+                        errors["ollama"] = f"Model '{model}' not found in Ollama. Please run 'ollama run {model}'"
+                        logger.warning("Ollama check: FAIL — missing model")
+            except Exception as e:
+                results["ollama"] = False
+                estr = str(e).lower()
+                if "connection refused" in estr or "connect" in estr:
+                    errors["ollama"] = "Could not connect to Ollama. Is the server running?"
+                else:
+                    errors["ollama"] = f"Ollama error: {str(e)[:80]}"
+                logger.warning(f"Ollama check: FAIL — {e}")
+            self._check_results.update(results)
+            self._check_errors.update(errors)
+            self.send_config_update(
+                checks={"ollama": results["ollama"]},
+                errors={"ollama": errors.get("ollama", "")},
+            )
+
+        except Exception as e:
+            logger.exception("Unexpected error during checks")
+            results = {k: False for k in self._check_results}
+            for k in results:
+                errors[k] = f"Setup error: {str(e)[:80]}"
+            self._check_results.update(results)
+            self._check_errors.update(errors)
+            self.send_config_update(checks=dict(results), errors=dict(errors))
+
+        finally:
+            self._checks_running = False
+
+    async def _handle_config_done(self) -> None:
+        """Finalize setup and unblock wait_for_config."""
+        self._configured = True
+        self._config_event.set()
+        self.send_config_update(config_done=True)
+        logger.info("Config done — unblocking main loop.")
+
+    def _broadcast(self, payload: dict) -> None:
+        """Thread-safe fire-and-forget broadcast to all WS clients."""
+        if not self._loop:
+            return
+        msg = json.dumps(payload)
+        with self._clients_lock:
+            clients = set(self._clients)
+        for ws in clients:
+            asyncio.run_coroutine_threadsafe(self._send(ws, msg), self._loop)
+
+    @staticmethod
+    async def _send(ws: "WebSocketServerProtocol", msg: str) -> None:
+        try:
+            await ws.send(msg)
+        except Exception:
+            pass
+
+    async def _handle(self, ws: "WebSocketServerProtocol") -> None:
+        logger.info(f"Frontend connected: {ws.remote_address}")
+        with self._clients_lock:
+            self._clients.add(ws)
+
+        try:
+            await ws.send(json.dumps({"type": "state", "state": self._state}))
+        except Exception:
+            pass
+
+        try:
+            async for raw in ws:
+                try:
+                    msg = json.loads(raw)
+                    mtype = msg.get("type")
+
+                    if mtype == "text_command":
+                        text = str(msg.get("text", "")).strip()
+                        if text and self.on_text_command:
+                            self.on_text_command(text)
+
+                    elif mtype == "mute":
+                        self._muted = bool(msg.get("muted", False))
+                        logger.info(f"Mute -> {self._muted}")
+
+                    elif mtype == "file":
+                        self._current_file = msg.get("path")
+                        logger.info(f"File set -> {self._current_file}")
+
+                    elif mtype == "get_config":
+                        await self._handle_get_config()
+
+                    elif mtype == "set_api_key":
+                        await self._handle_set_api_key(str(msg.get("key", "")))
+
+                    elif mtype == "run_checks":
+                        asyncio.create_task(self._run_checks())
+
+                    elif mtype == "config_done":
+                        await self._handle_config_done()
+
+                    elif mtype == "stt_request":
+                        pass
+
+                except json.JSONDecodeError:
+                    pass
+                except Exception:
+                    logger.exception("An error occurred")
+
+        except Exception as e:
+            logger.info(f"Frontend disconnected: {e}")
+        finally:
+            with self._clients_lock:
+                self._clients.discard(ws)
+
+    async def serve(self) -> None:
+        """Start the WebSocket server."""
+        self._loop = asyncio.get_event_loop()
+        logger.info(f"WS server starting on ws://{WS_HOST}:{WS_PORT}")
+        async with websockets.serve(self._handle, WS_HOST, WS_PORT, max_size=10_485_760):
+            logger.info(f"WS server ready ws://{WS_HOST}:{WS_PORT}")
+            await asyncio.Future()
