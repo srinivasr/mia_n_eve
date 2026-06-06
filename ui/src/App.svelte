@@ -8,13 +8,14 @@
   import LoadingScreen from "./lib/components/LoadingScreen.svelte";
 
   import { onMount } from "svelte";
+  import { open } from "@tauri-apps/plugin-shell";
   import {
     currentState,
     transcript,
     latencyMs,
     isConnected,
   } from "./lib/stores/miaState";
-  import { wizardComplete } from "./lib/stores/setupStore";
+  import { wizardComplete, flashOverlay } from "./lib/stores/setupStore";
 
   let ws: WebSocket | null = null;
   let reconnectInterval: ReturnType<typeof setInterval>;
@@ -29,21 +30,27 @@
     {
       time: new Date().toTimeString().split(" ")[0],
       sender: "SYSTEM",
-      text: "M.I.A. PROTOCOL INITIALIZED."
-    }
+      text: "M.I.A. PROTOCOL INITIALIZED.",
+    },
   ];
 
   onMount(() => {
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
+    window.onerror = function (msg, url, lineNo, columnNo, error) {
       const now = new Date().toTimeString().split(" ")[0];
-      messages = [...messages, { time: now, sender: "ERR", text: `[ERR] ${msg}` }];
+      messages = [
+        ...messages,
+        { time: now, sender: "ERR", text: `[ERR] ${msg}` },
+      ];
       return false;
     };
     const originalError = console.error;
-    console.error = function(...args) {
+    console.error = function (...args) {
       if (args[0] && args[0].toString().includes("WebGL")) {
         const now = new Date().toTimeString().split(" ")[0];
-        messages = [...messages, { time: now, sender: "ERR", text: `[ERR] WebGL: ${args.join(" ")}` }];
+        messages = [
+          ...messages,
+          { time: now, sender: "ERR", text: `[ERR] WebGL: ${args.join(" ")}` },
+        ];
       }
       originalError.apply(console, args);
     };
@@ -78,26 +85,31 @@
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          
-          if (msg.type === "state" && msg.state) {
-            const stateStr = msg.state.charAt(0).toUpperCase() + msg.state.slice(1).toLowerCase();
-            currentState.set(stateStr);
-          } 
-          else if (msg.type === "log" && msg.text) {
-            let txt = msg.text;
-            let sender = "SYS";
-            
-            if (txt.includes("MIA:")) {
-              sender = "MIA";
-              txt = txt.split("MIA:")[1].trim();
-              transcript.set(txt);
-            } else if (txt.includes("You:")) {
-              sender = "USER";
-              txt = txt.split("You:")[1].trim();
-            }
 
-            const now = new Date().toTimeString().split(" ")[0];
-            messages = [...messages, { time: now, sender, text: txt }];
+          if (msg.type === "state" && msg.state) {
+            const stateStr =
+              msg.state.charAt(0).toUpperCase() +
+              msg.state.slice(1).toLowerCase();
+            currentState.set(stateStr);
+          } else if (msg.type === "log" && msg.text) {
+            let txt = msg.text;
+
+            if (txt.includes("You:")) {
+              // USER messages added locally via onUserMessage callback
+            } else {
+              let sender = "SYS";
+              if (txt.includes("MIA:")) {
+                sender = "MIA";
+                txt = txt.split("MIA:")[1].trim();
+                transcript.set(txt);
+              }
+              const now = new Date().toTimeString().split(" ")[0];
+              messages = [...messages, { time: now, sender, text: txt }];
+            }
+          } else if (msg.type === "open_url" && msg.url) {
+            open(msg.url);
+          } else if (msg.type === "transcript" && msg.text) {
+            transcript.set(msg.text);
           }
         } catch (e) {
           console.error("WS Parse Error", e);
@@ -128,7 +140,6 @@
 
     <!-- Layout Container -->
     <div class="hud-layout">
-      
       <!-- Left Panel: Metrics -->
       <div class="left-panel">
         <MetricsPanel />
@@ -139,21 +150,32 @@
         <StatusText state={$currentState} />
       </div>
 
-      <!-- Right Panel: Logs and File Drop -->
+      <!-- Right Panel: Terminal Chat and File Drop -->
       <div class="right-panel">
         <div class="log-container">
-          <LogPanel {messages} />
+          <LogPanel
+            {messages}
+            {ws}
+            state={$currentState}
+            onUserMessage={(text) => {
+              const now = new Date().toTimeString().split(" ")[0];
+              messages = [...messages, { time: now, sender: "USER", text }];
+            }}
+          />
         </div>
         <div class="drop-container">
-          <FileDropZone />
+          <FileDropZone {ws} />
         </div>
       </div>
-
     </div>
   {:else if $isConnected}
     <SetupScreen {ws} />
   {:else}
     <LoadingScreen />
+  {/if}
+
+  {#if $flashOverlay}
+    <div class="flash-overlay"></div>
   {/if}
 </main>
 
@@ -177,7 +199,11 @@
     height: 100vh;
     pointer-events: none;
     z-index: 1;
-    background-image: radial-gradient(circle at center, var(--pri-gho) 1.5px, transparent 1.5px);
+    background-image: radial-gradient(
+      circle at center,
+      var(--pri-gho) 1.5px,
+      transparent 1.5px
+    );
     background-size: 48px 48px;
     background-position: center;
   }
@@ -199,7 +225,7 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    width: 148px;
+    width: clamp(200px, 20vw, 320px);
     height: 100%;
   }
 
@@ -214,23 +240,41 @@
   .right-panel {
     display: flex;
     flex-direction: column;
-    width: 340px;
+    width: clamp(300px, 30vw, 480px);
     height: 100%;
-    padding-top: 100px;
-    padding-bottom: 100px;
-    pointer-events: none; /* Container ignores pointer */
+    pointer-events: none;
+  }
+
+  .right-panel > * {
+    pointer-events: auto;
   }
 
   .log-container {
     flex: 1;
     margin-bottom: 16px;
-    pointer-events: auto;
     overflow: hidden;
   }
 
   .drop-container {
     height: 100px;
     flex-shrink: 0;
-    pointer-events: auto;
+  }
+
+  .flash-overlay {
+    position: fixed;
+    inset: 0;
+    background: white;
+    z-index: 99999;
+    animation: flashIn 0.3s ease-out forwards;
+    pointer-events: none;
+  }
+
+  @keyframes flashIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 </style>

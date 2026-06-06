@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 
 export type MiaState = 
+    | 'Initializing'
     | 'Idle' 
     | 'Listening' 
     | 'Thinking' 

@@ -1,3 +1,4 @@
+import pyttsx3
 import threading
 import queue
 import re
@@ -33,6 +34,7 @@ class PiperTTS:
         self.q = queue.Queue()
         self._thread = None
         self._stop_event = threading.Event()
+        self._current_process = None
 
     def initialize(self):
         self._thread = threading.Thread(target=self._worker, daemon=True)
@@ -57,30 +59,23 @@ class PiperTTS:
                     try:
                         # Use local Piper TTS with high-quality Lessac voice
                         import subprocess
-                        import os
-                        
-                        brain_dir = os.path.dirname(os.path.abspath(__file__))
-                        piper_bin = os.path.join(brain_dir, "venv", "bin", "piper")
-                        model_path = os.path.join(brain_dir, "piper_voices", "en_US-lessac-medium.onnx")
-                        
-                        # Fallback if piper isn't in venv (e.g. system wide)
-                        if not os.path.exists(piper_bin):
-                            piper_bin = "piper"
-                            
-                        subprocess.run([
-                            piper_bin,
-                            "--model", model_path,
+                        self._current_process = subprocess.Popen([
+                            "/home/lev/repos/mialocal/brain/venv/bin/piper",
+                            "--model", "/home/lev/repos/mialocal/brain/piper_voices/en_US-lessac-medium.onnx",
                             "--output_file", tmp_path
-                        ], input=text.encode('utf-8'), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        ], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        self._current_process.communicate(input=text.encode('utf-8'))
                         
                         # Play using ffplay
-                        subprocess.run([
+                        self._current_process = subprocess.Popen([
                             "ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", tmp_path
-                        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        self._current_process.wait()
                         
                     except Exception as e:
                         print(f"TTS Error: {e}")
                     finally:
+                        self._current_process = None
                         # Cleanup temp file
                         if os.path.exists(tmp_path):
                             os.remove(tmp_path)
@@ -98,8 +93,26 @@ class PiperTTS:
     def wait_for_completion(self):
         self.q.join()
 
+    def stop(self):
+        """Stops current playback and clears the queue."""
+        # Clear the queue
+        try:
+            while True:
+                self.q.get_nowait()
+                self.q.task_done()
+        except queue.Empty:
+            pass
+        
+        # Terminate current running process (piper or ffplay)
+        if self._current_process:
+            try:
+                self._current_process.terminate()
+            except Exception:
+                pass
+
     def shutdown(self):
         self._stop_event.set()
+        self.stop()
         if self._thread:
             self.q.put(None)
             self._thread.join(timeout=2)
